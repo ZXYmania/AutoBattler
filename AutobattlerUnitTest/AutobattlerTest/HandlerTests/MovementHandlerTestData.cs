@@ -108,24 +108,25 @@ public class MovementHandlerTestData
     // }
 
     public struct ProtagonistMovementTestData
+    {
+        public PhaseType leftPhase;
+        public PhaseType rightPhase;
+        public PhaseType currentPhase;
+        public bool leftIsProtagonist;
+        public bool rightIsProtagonist;
+        
+        public ProtagonistMovementTestData(PhaseType leftPhase, PhaseType rightPhase, PhaseType currentPhase, bool leftIsProtagonist, bool rightIsProtagonist)
         {
-            public PhaseType leftPhase;
-            public PhaseType rightPhase;
-            public PhaseType currentPhase;
-            public bool leftIsProtagonist;
-            public bool rightIsProtagonist;
-            public ProtagonistMovementTestData(PhaseType leftPhase, PhaseType rightPhase, PhaseType currentPhase, bool leftIsProtagonist, bool rightIsProtagonist)
-            {
-                this.leftPhase = leftPhase;
-                this.rightPhase = rightPhase;
-                this.currentPhase = currentPhase;
-                this. leftIsProtagonist = leftIsProtagonist;
-                this.rightIsProtagonist = rightIsProtagonist;
-            }
-            public override string ToString()
-            {
-                return "Left: " + leftPhase +", " + leftIsProtagonist+", " + "Right: " + rightPhase + ", " +rightIsProtagonist+ ", CurrentPhase: " + currentPhase;
-            }
+            this.leftPhase = leftPhase;
+            this.rightPhase = rightPhase;
+            this.currentPhase = currentPhase;
+            this. leftIsProtagonist = leftIsProtagonist;
+            this.rightIsProtagonist = rightIsProtagonist;
+        }
+        public override string ToString()
+        {
+            return "Left: " + leftPhase +", " + leftIsProtagonist+", " + "Right: " + rightPhase + ", " +rightIsProtagonist+ ", CurrentPhase: " + currentPhase;
+        }
         
         public static List<ProtagonistMovementTestData> allProtagonistMovement = new List<ProtagonistMovementTestData>()
         {
@@ -206,115 +207,5 @@ public class MovementHandlerTestData
         public Order antagonistOrder;
         public PhaseType currentPhase;
         public MovementStep result;
-    }
-
-    public struct OrderTestData2
-    {
-        PhaseType currentPhase;
-        Order protagonistOrder;
-        Order antagonistOrder;
-        PhaseType expected;
-
-        public OrderTestData2(PhaseType currentPhase,
-                            MovementType protagonistMovement,
-                             MovementType antagonistMovement,
-                             PhaseType expectedPhase, 
-                             int protagonistEffort = 10, int antagonistEffort = 10)
-        {
-            this.currentPhase = currentPhase;
-            protagonistOrder = new Order(Guid.NewGuid(), new MovementCaptainTestClass(protagonistMovement, protagonistEffort), PhaseType.OutOfCombat, PhaseType.OutOfCombat);
-            antagonistOrder = new Order(Guid.NewGuid(), new MovementCaptainTestClass(antagonistMovement, antagonistEffort), PhaseType.OutOfCombat, PhaseType.OutOfCombat);
-            protagonistOrder.SetProtagonist(PhaseType.OutOfCombat);
-            antagonistOrder.SetAntagonist(PhaseType.OutOfCombat, protagonistOrder.movement);
-                        expected = expectedPhase;
-        }
-
-        // public List<OrderTestData> allOrders = new List<OrderTestData>()
-        // {
-        //     new MovementStep(MovementType.Stay, MovementType.Stay)
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.Fallback, MovementType.Fallback, MovementType.Fallback, PhaseType.Flee),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.Charge),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.March),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.Advance),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Flee, MovementType.Stay),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Charge, MovementType.Charge),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Charge, MovementType.March),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Charge, MovementType.Advance),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Charge, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Charge, MovementType.Stay),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.March, MovementType.March),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.March, MovementType.Advance),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.March, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.March, MovementType.Stay),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Advance, MovementType.Advance),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Advance, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Advance, MovementType.Stay),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Fallback, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.OutOfCombat, MovementType.Stay, MovementType.Stay),
-
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.Fallback, MovementType.Fallback, MovementType.Fallback, PhaseType.Flee),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.March),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Flee, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Charge, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Charge, MovementType.March),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Charge, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Charge, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Charge, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Poke, MovementType.March, MovementType.March),
-        //     new OrderTestData(PhaseType.Poke, MovementType.March, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Poke, MovementType.March, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Poke, MovementType.March, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Advance, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Advance, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Advance, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Fallback, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Poke, MovementType.Stay, MovementType.Stay),
-
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.Fallback, MovementType.Fallback, MovementType.Fallback, PhaseType.Flee),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.March),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Flee, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Charge, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Charge, MovementType.March),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Charge, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Charge, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Charge, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Duel, MovementType.March, MovementType.March),
-        //     new OrderTestData(PhaseType.Duel, MovementType.March, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Duel, MovementType.March, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Duel, MovementType.March, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Advance, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Advance, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Advance, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Fallback, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Duel, MovementType.Stay, MovementType.Stay),
-
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.Fallback, MovementType.Fallback, MovementType.Fallback, PhaseType.Flee),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.March),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Flee, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Charge, MovementType.Charge),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Charge, MovementType.March),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Charge, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Charge, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Charge, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Engage, MovementType.March, MovementType.March),
-        //     new OrderTestData(PhaseType.Engage, MovementType.March, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Engage, MovementType.March, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Engage, MovementType.March, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Advance, MovementType.Advance),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Advance, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Advance, MovementType.Stay),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Fallback, MovementType.Fallback),
-        //     new OrderTestData(PhaseType.Engage, MovementType.Stay, MovementType.Stay),
-        // };
     }
 }

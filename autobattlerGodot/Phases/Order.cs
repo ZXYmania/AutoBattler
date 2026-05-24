@@ -10,7 +10,7 @@ public struct Order
 {
     public PhaseType currentPhase;
 
-    public Guid troopId {get; private set;}
+    public Guid troopId;
     public PhaseType desiredPhase {get; private set;} // 4 outside, 3 Outrange, 2 Duel, 1 Engage
     public MovementType movement {get; private set;}
     public int effort {get; private set;}

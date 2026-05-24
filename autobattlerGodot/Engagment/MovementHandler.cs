@@ -1,27 +1,31 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Godot;
 using static Engagement;
 using static Troop;
 using static Phase;
 using static Movement;
+using static AffectsMovement;
 
-public class MovementHandler // : IComponent 
+public class MovementHandler
 {
+	IRandom rng;
+	public MovementHandler(IRandom rng)
+	{
+		this.rng = rng;
+	}
 
-    public Tuple<Order, Order> InitialiseOrder(Order leftOrder, Order rightOrder, PhaseType currentPhase)
+    public MovementOrders InitialiseOrder(in Order leftOrder, in Order rightOrder, PhaseType currentPhase)
 	{
 		MovementType leftMovement = DifferenceBetweenPhaseType(currentPhase, leftOrder.desiredPhase);
 		MovementType rightMovement = DifferenceBetweenPhaseType(currentPhase, rightOrder.desiredPhase);
 		int leftPriority = GetMovementPriority(leftMovement);
 		int rightPriority = GetMovementPriority(rightMovement);
-		
 		if(leftPriority == rightPriority)
 		{
 			if(leftMovement == MovementType.Stay && rightMovement == MovementType.Stay)
 			{
-				return new Tuple<Order, Order>(leftOrder, rightOrder);
+				return NoProtagonist(leftOrder, rightOrder, currentPhase);
 			}
 			if(leftOrder.effort > rightOrder.effort)
 			{
@@ -42,65 +46,80 @@ public class MovementHandler // : IComponent
 		}
 	}
 
-	public Tuple<Order,Order> SetLeftProtagonist(Order leftOrder, Order rightOrder, PhaseType currentPhase)
+	public MovementOrders NoProtagonist(in Order leftOrder,in Order rightOrder, PhaseType currentPhase)
+	{
+		return new MovementOrders{protagonistOrder = leftOrder, antagonistOrder = rightOrder, currentPhase = currentPhase};
+	}
+
+	public MovementOrders SetLeftProtagonist(Order leftOrder, Order rightOrder, PhaseType currentPhase)
 	{
 		leftOrder.SetProtagonist(currentPhase);
 		rightOrder.SetAntagonist(currentPhase, leftOrder.movement);
-		return new Tuple<Order,Order>(leftOrder, rightOrder);
+		return new MovementOrders{ protagonistOrder = leftOrder, antagonistOrder = rightOrder, currentPhase = currentPhase};
 	}
 
-	public Tuple<Order,Order> SetRightProtagonist(Order leftOrder, Order rightOrder, PhaseType currentPhase)
+	public MovementOrders SetRightProtagonist(Order leftOrder, Order rightOrder, PhaseType currentPhase)
 	{
 		rightOrder.SetProtagonist(currentPhase);
 		leftOrder.SetAntagonist(currentPhase, rightOrder.movement);
-		return new Tuple<Order,Order>(leftOrder, rightOrder);
+		return new MovementOrders{ protagonistOrder = rightOrder, antagonistOrder = leftOrder, currentPhase = currentPhase};
 	}
 
-	public MovementStep GetMovementResult(TroopContext protagonist, Order protagonistOrder, TroopContext antagonist, Order antagonistOrder, PhaseType currentPhase)
+	public MovementStep GetMovementResult(in TroopContext protagonist, Order protagonistOrder, in TroopContext antagonist, Order antagonistOrder, PhaseType currentPhase)
 	{
 		// Apply movement perks
 		MovementCheck protagonistCheck = new MovementCheck();
 		MovementCheck antagonistCheck = new MovementCheck();
 
-		IEnumerable<AffectsMovement> protagonistMovements = protagonist.activePerkList.OfType<AffectsMovement>();
-		IEnumerable<AffectsMovement> antagonistMovements = antagonist.activePerkList.OfType<AffectsMovement>();
-
-		foreach(AffectsMovement perk in protagonistMovements)
+		foreach(AffectsMovement perk in protagonist.activePerks.Values.ToList() ?? new List<TroopPerk>())
 		{
-			if(perk.GetActivationPhase() != currentPhase)
+			if(perk != null)
 			{
-				throw new NotImplementedException("Invaid activation phase of perk");
-			}
-
-			switch(perk.MovementAppliedTo())
-			{
-				case ActorType.protagonist:
-					protagonistCheck = protagonistCheck.ModifyMovementCheck(perk.GetMovementModifier(), currentPhase);
-					break;
-				case ActorType.antagonist:
-					antagonistCheck = antagonistCheck.ModifyMovementCheck(perk.GetMovementModifier(), currentPhase);
-					break;
-				default:
-					throw new NotImplementedException("Invalid actor type of: " +perk.MovementAppliedTo());
+				Nullable<MovementModifier> currentModifier = perk.GetMovementModifier();
+				if(currentModifier.HasValue)
+				{
+					if(currentModifier.Value.currentPhase != currentPhase)
+					{
+						throw new NotImplementedException("Invaid activation phase of perk");
+					}
+					if(currentModifier.Value.troopId == protagonist.id)
+					{
+						protagonistCheck = protagonistCheck.ModifyMovementCheck(currentModifier.Value, currentPhase);
+					}
+					else if(currentModifier.Value.troopId == antagonist.id)
+					{
+						antagonistCheck = antagonistCheck.ModifyMovementCheck(currentModifier.Value, currentPhase);
+					}
+					else
+					{
+						throw new NotImplementedException("Invalid troopId of: " + currentModifier.Value.troopId + ". Valid options are: " +protagonist.id+", " +antagonist.id);
+					}
+				}
 			}
 		}
-		foreach(AffectsMovement perk in antagonistMovements)
-		{
-			if(perk.GetActivationPhase() != currentPhase)
-			{
-				throw new NotImplementedException("Invaid activation phase of perk");
-			}
 
-			switch(perk.MovementAppliedTo())
+		foreach(AffectsMovement perk in antagonist.activePerks.Values.ToList() ?? new List<TroopPerk>())
+		{
+			Nullable<MovementModifier> currentModifier = perk.GetMovementModifier();
+			if(currentModifier.HasValue)
 			{
-				case ActorType.protagonist:
-					protagonistCheck = protagonistCheck.ModifyMovementCheck(perk.GetMovementModifier(), currentPhase);
-					break;
-				case ActorType.antagonist:
-					antagonistCheck = antagonistCheck.ModifyMovementCheck(perk.GetMovementModifier(), currentPhase);
-					break;
-				default:
-					throw new NotImplementedException("Invalid actor type of: " + perk.MovementAppliedTo());
+				if(currentModifier.Value.currentPhase != currentPhase)
+				{
+					throw new NotImplementedException("Invaid activation phase of perk");
+				}
+
+				if(currentModifier.Value.troopId == protagonist.id)
+				{
+					protagonistCheck = protagonistCheck.ModifyMovementCheck(currentModifier.Value, currentPhase);
+				}
+				else if(currentModifier.Value.troopId == antagonist.id)
+				{
+					antagonistCheck = antagonistCheck.ModifyMovementCheck(currentModifier.Value, currentPhase);
+				}
+				else
+				{
+					throw new NotImplementedException("Invalid troopId of: " + currentModifier.Value.troopId + ". Valid options are: " +protagonist.id+", " +antagonist.id);
+				}
 			}
 		}
 		MovementStep resultMovement = new MovementStep();
@@ -114,10 +133,10 @@ public class MovementHandler // : IComponent
 		{
 			resultMovement.protagonistResult = MovementType.Stay;
 		}
-		if(protagonistOrder.effort > protagonistCheck.threshold)
+		if(antagonistOrder.effort > antagonistCheck.threshold)
 		{
 			resultMovement.antagonistResult = NormaliseMovement(antagonistOrder.movement);	
-			resultMovement.resultPhase = AddMovementToPhaseType(currentPhase, resultMovement.protagonistResult);
+			resultMovement.resultPhase = AddMovementToPhaseType(currentPhase, resultMovement.antagonistResult);
 		}
 		else
 		{
@@ -125,26 +144,4 @@ public class MovementHandler // : IComponent
 		}
 		return resultMovement;
 	}
-
-
-    public void HandlePhaseChange()
-    {					
-		// MovementStep movementDone = new MovementStep(MovementType.NoEffect, MovementType.NoEffect);
-		// if(protagonistPerk != null)
-		// {
-		// 	ActionType protagonistActionToDo = protagonistPerk.OnMovement(protagonistOrder, antagonistOrder);
-        //     // Send Action Event
-		// 	// TroopAction protagonistAction = DoAction(context, protagonistActionToDo);
-		// 	// movementDone = CombineMovementStep(movementDone, protagonistPerk.GetGap(protagonistAction));
-		// }
-		// if(antagonistPerk != null)
-		// {
-		// 	ActionType antagonistToDo = antagonistPerk.OnMovement(protagonistOrder, antagonistOrder);
-		// 	// TroopAction antagonistAction = DoAction(), antagonistToDo);
-		// 	// movementDone = CombineMovementStep(movementDone, antagonistPerk.GetGap(antagonistAction));
-		// }
-
-		// get results
-			// compare stats
-    }
 }

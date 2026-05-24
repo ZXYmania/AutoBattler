@@ -8,7 +8,6 @@ using static Troop;
 public interface Captain
 {   
     public Order GetOrder(TroopContext context, TroopContext antagonist, PhaseType currentPhase);
-    public List<Perk> ResolveConflicts(List<Perk> triggeredPerks, List<Perk> activePerks);
     public bool CanStrike();
-    public StandingOrder GetMovement(PhaseType currentPhase, PhaseType desiredPhase, MovementType? antagonistMovement = null);
+    public StandingOrder GetMovement(PhaseType currentPhase, PhaseType desiredPhase, Nullable<MovementType> antagonistMovement = null);
 }

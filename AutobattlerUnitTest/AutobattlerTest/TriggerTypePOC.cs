@@ -1,104 +1,228 @@
 using System.Collections.Generic;
-using static TriggerTypePOCTest.Trigger2;
+using static TriggerTypePOCTest.PhaseEmotion;
 
 [TestClass]
 public sealed class TriggerTypePOCTest
 {
     [TestMethod]
-    public void TestTriggerTypePOC()
+    public void TestEventTriggerPOCSubscriptionWorks()
     {
-        List<PerkPOC> perks = new List<PerkPOC>() {new Perk1(), new Perk1(), new Perk2(3, new HashSet<Modes>{Modes.happy, Modes.sad}), new Perk2(5, new HashSet<Modes>{Modes.medium})};
-        Trigger1 called1 = new Trigger1 { value = 6 };
-        foreach(PerkPOC perk in perks)
+        PerkEngagement engagement1 = new PerkEngagement();
+        Perk2 firstPerk2 = new Perk2(3, new HashSet<Modes>{Modes.sad, Modes.medium});
+        Perk2 secondPerk2 = new Perk2(5, new HashSet<Modes>{Modes.medium});
+        Perk1 firstPerk1 = new Perk1();
+        PerkEngagement.EngagementSubscriptionhandler subscirbe = new PerkEngagement.EngagementSubscriptionhandler(engagement1);
+
+        firstPerk2.InitialiseSubscription(subscirbe);
+        secondPerk2.InitialiseSubscription(subscirbe);
+        firstPerk1.InitialiseSubscription(subscirbe);
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        Assert.AreEqual(true, firstPerk2.active);
+        Assert.AreEqual(true, firstPerk2.active);
+        Assert.AreEqual(false, firstPerk1.active);
+    }
+
+    [TestMethod]
+    public void TestEventTriggerPOCListIteration()
+    {
+        PerkEngagement engagement1 = new PerkEngagement();
+        List<PerkPOC> perkList = new List<PerkPOC>(){
+                new Perk2(3, new HashSet<Modes>{Modes.sad, Modes.medium}),
+                new Perk2(5, new HashSet<Modes>{Modes.medium}),
+                new Perk1(),
+        };
+        PerkEngagement.EngagementSubscriptionhandler subscirbe = new PerkEngagement.EngagementSubscriptionhandler(engagement1);
+
+        foreach(PerkPOC perk in perkList)
         {
-            perk.TriggerCheck(called1);
-        }
-        Trigger2 called2 = new Trigger2{modes = new HashSet<Modes>(){Modes.medium}};
-        foreach(PerkPOC perk in perks)
-        {
-            perk.TriggerCheck(called2);
+            perk.InitialiseSubscription(subscirbe);
         }
 
-        var unitTest = perks.GroupBy(x => x.GetId()).Where( group => group.Count() > 1);
-        foreach(IGrouping<Guid,PerkPOC> group in unitTest)
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        
+        foreach(PerkPOC perk in perkList)
         {
-            foreach(PerkPOC perk in group)
+            if(perk is Perk2 perk2)
             {
-                if(perk is Perk2 perk2)
+                Assert.IsTrue(perk.IsActive());
+                perk2.IncreaseIntensity();
+            }
+            if(perk is Perk1)
+            {
+                Assert.IsFalse(perk.IsActive());
+            }
+        }
+    }
+
+    [TestMethod]
+    public void TestUnsubscribeWorks()
+    {
+        PerkEngagement engagement1 = new PerkEngagement();
+        List<Perk2> perk2List = [new Perk2(3, new HashSet<Modes>{Modes.sad, Modes.medium}), new Perk2(5, new HashSet<Modes>{Modes.medium})];
+        PerkEngagement.EngagementSubscriptionhandler subscirbe = new PerkEngagement.EngagementSubscriptionhandler(engagement1);
+        foreach(Perk2 perk in perk2List)
+        {
+            perk.InitialiseSubscription(subscirbe);
+        }
+        perk2List[1].Dispose();
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        Assert.AreEqual(true, perk2List[0].active);
+        Assert.AreEqual(false, perk2List[1].active);
+        perk2List.RemoveAt(1);
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        perk2List.RemoveAt(0);
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+    }
+
+    [TestMethod]
+    public void TestScopeUnsubscribe()
+    {
+        PerkEngagement engagement1 = new PerkEngagement();
+        List<Perk2> perk2List = new List<Perk2>();
+        PerkEngagement.EngagementSubscriptionhandler subscribe = new PerkEngagement.EngagementSubscriptionhandler(engagement1);
+        for(int i = 0; i < 2; i++)
+        {
+            Perk2 perk = new Perk2(5, new HashSet<Modes>(){ Modes.sad});
+            perk.InitialiseSubscription(new PerkEngagement.EngagementSubscriptionhandler(engagement1));
+            perk2List.Add(perk);
+        }
+        perk2List[1].Dispose();
+        perk2List[1].Dispose();
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        Assert.AreEqual(true, perk2List[0].active);
+        Assert.AreEqual(false, perk2List[1].active);
+        perk2List.RemoveAt(1);
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+        perk2List.RemoveAt(0);
+        engagement1.TriggerPhaseEmotion(Modes.happy);
+
+    }
+
+    public class PerkTroop
+    {
+        public List<PerkPOC> perkPool;
+        public PerkTroop()
+        {
+            perkPool = new List<PerkPOC>();
+        }
+        public PerkTroop(List<PerkPOC> perk)
+        {
+            perkPool = perk;
+        }
+    }
+
+    public class PerkEngagement
+    {
+        PerkTroop left;
+        PerkTroop right;
+        public event Action<PhaseEmotion> PhaseEmotionEvent = delegate{};
+        public event Action<ItHappened> ItHappenedEvent = delegate{};  
+
+        public PerkEngagement()
+        {
+            left = new PerkTroop();
+            right = new PerkTroop();
+        }
+
+        public void TriggerPhaseEmotion(Modes emotion)
+        {
+            PhaseEmotionEvent(new PhaseEmotion{phaseMode=emotion});
+        }
+
+        public class EngagementSubscriptionhandler
+        {
+            private PerkEngagement context;
+
+            public EngagementSubscriptionhandler(PerkEngagement context)
+            {
+                this.context = context;
+            }
+
+            public void UpdateSubscriptionToItHappendEvent(Action<ItHappened> subscriber, bool subscribe)
+            {
+                if(subscribe)
                 {
-                    perk2.IncreaseIntensity();
+                    context.ItHappenedEvent += subscriber;
+                }
+                else
+                {
+                    context.ItHappenedEvent -= subscriber;
+                }
+
+            }
+
+            public void UpdateSubscriptionToPhaseEmotionEvent(Action<PhaseEmotion> subscriber, bool subscribe)
+            {
+                if(subscribe)
+                {
+                    context.PhaseEmotionEvent += subscriber;
+                }
+                else
+                {
+                    context.PhaseEmotionEvent -= subscriber;
                 }
             }
-        }
-        
+        }   
     }
 
-    public interface TriggerTypePOC
+    public enum TriggerTypePoc
     {
-        public Guid GetId();
-        public bool TriggerMet(TriggerTypePOC trigger);
+        ItHappend,
+        Emotion
     }
 
-    public interface PerkPOC : IEquatable<PerkPOC>
+    public interface TriggerPOC
     {
-        public Guid GetId();
-        public TriggerTypePOC GetTrigger();
-        public void TriggerCheck(TriggerTypePOC triggerCheck);
-        public PerkPOC ResolveClash(PerkPOC otherPerkPoc);
+        public TriggerTypePoc GetTriggerType();
     }
 
-    public struct Trigger1 : TriggerTypePOC
+    public struct ItHappened : TriggerPOC
     {
-        static Guid id = Guid.NewGuid();
-
+        public bool it;
         public int value;
-        public bool Equals(TriggerTypePOC? other)
+        public TriggerTypePoc GetTriggerType()
         {
-            if(other is Trigger1 trigger1)
-            {
-                return value == trigger1.value;
-            }
-            return false;
+            return TriggerTypePoc.ItHappend;
         }
 
-        public bool TriggerMet(TriggerTypePOC trigger)
-        {
-            return trigger is Trigger1;
-        }
-
-        public Guid GetId()
-        {
-            return id;
-        }
     }
 
-    public struct Trigger2 : TriggerTypePOC
+    public struct PhaseEmotion : TriggerPOC
     {
-
-        static Guid id = Guid.NewGuid();
-
         public enum Modes
         {
             happy,
             sad, 
             medium
         }
-
-        public ISet<Modes> modes;
-
-        public bool TriggerMet(TriggerTypePOC trigger)
+        public Modes phaseMode;
+        public TriggerTypePoc GetTriggerType()
         {
-            if(trigger is Trigger2 f)
-            {
-                return f.modes.IsSubsetOf(modes);
-            }
-            return false;
+            return TriggerTypePoc.Emotion;
         }
+    }
 
-        public Guid GetId()
-        {
-            return id;
-        }
+    public interface PerkPOC : IEquatable<PerkPOC>
+    {
+        public Guid GetId();
+        public PerkPOC ResolveClash(PerkPOC otherPerkPoc);
+        public bool IsActive();
+        public void InitialiseSubscription(PerkEngagement.EngagementSubscriptionhandler subscriber);
+    }
+
+    public interface BuffPOC
+    {
+        
+    }
+
+    public interface DebuffApplierPOC
+    {
+        
+    }
+
+    public interface Debuff
+    {
+        
     }
 
     public class Perk1 : PerkPOC
@@ -106,18 +230,25 @@ public sealed class TriggerTypePOCTest
         public static Guid id {get; private set;} = Guid.NewGuid(); 
         public int power;
         public bool active;
-        public Trigger1 trigger;
+        public bool happenedIt;
+
+        public static int index = 0;
 
         public Perk1()
         {
             power = 0;
             active = false;
-            trigger = new Trigger1();
+            happenedIt = true;
         }
 
         public Guid GetId()
         {
             return id;
+        }
+
+        public bool IsActive()
+        {
+            return active;
         }
 
         public bool Equals(PerkPOC? other)
@@ -129,50 +260,45 @@ public sealed class TriggerTypePOCTest
             return id == other.GetId();
         }
 
-        public TriggerTypePOC GetTrigger()
-        {
-            return trigger;
-        }
-
-        public void Trigger(Trigger1 trigger)
+        public void Trigger(ItHappened trigger)
         {
             active = true;
-            power = trigger.value + 3;
+            power = trigger.value + index;
+            index++;
         }
 
         public PerkPOC ResolveClash(PerkPOC otherPerkPoc)
         {
-            if(this != otherPerkPoc)
+            if(!this.Equals(otherPerkPoc))
             {
                 throw new NotImplementedException("Perks must be equatable to create a clash");
             }
             return this;
         }
 
-        public void TriggerCheck(TriggerTypePOC triggerCheck)
+        public void InitialiseSubscription(PerkEngagement.EngagementSubscriptionhandler subscriber)
         {
-            if(triggerCheck is Trigger1 trigger1)
-            {
-                if(this.trigger.TriggerMet(triggerCheck))
-                {
-                    Trigger(trigger1);
-                }
-            }
+            subscriber.UpdateSubscriptionToItHappendEvent(Trigger, true);
         }
+
     }
 
     public class Perk2 : PerkPOC
     {
         public static Guid id {get; private set;} = Guid.NewGuid(); 
-        public Dictionary<Guid,TriggerTypePOC> triggerDict;
         public bool active;
         public int intensity;
+        public HashSet<Modes> modes;
+        PerkEngagement.EngagementSubscriptionhandler? subscriptionHandler;
+
+        public bool IsActive()
+        {
+            return active;
+        }
 
         public Perk2(int intensity, HashSet<Modes> modes)
         {
-            var trigger = new Trigger2{modes = modes};
-            triggerDict = new Dictionary<Guid, TriggerTypePOC>();
-            triggerDict.Add(trigger.GetId(), trigger);
+            this.modes = modes;
             active = false;
             this.intensity = intensity;
         }
@@ -196,11 +322,6 @@ public sealed class TriggerTypePOCTest
             return id;
         }
 
-        public TriggerTypePOC GetTrigger()
-        {
-            return triggerDict.First().Value;
-        }
-
         public PerkPOC ResolveClash(PerkPOC otherPerkPoc)
         {
             if(this == otherPerkPoc && otherPerkPoc is Perk2 perk2)
@@ -214,30 +335,75 @@ public sealed class TriggerTypePOCTest
             throw new NotImplementedException("Perks must be equatable for a clash to occur");
         }
 
-        public void TriggerCheck(TriggerTypePOC triggerCheck)
+        public void Trigger(PhaseEmotion trigger)
         {
-            if(triggerDict.ContainsKey(triggerCheck.GetId()))
+            active = true;
+            switch(trigger.phaseMode)
             {
-                if(triggerDict[triggerCheck.GetId()].TriggerMet(triggerCheck))
-                {
-                    Trigger(triggerCheck);
-                }
+                case Modes.happy : intensity *= 2;
+                    return;
+                case Modes.sad : intensity = (int) (intensity * 0.5);
+                    return;
+                default:
+                    return;
             }
         }
 
-        public void Trigger(TriggerTypePOC trigger)
+        public void InitialiseSubscription(PerkEngagement.EngagementSubscriptionhandler subscriber)
         {
-            if(trigger is Trigger2 trigger2)
+            this.subscriptionHandler = subscriber;
+             this.subscriptionHandler.UpdateSubscriptionToPhaseEmotionEvent(Trigger, true);
+        }
+
+        public void Dispose()
+        {
+           this.subscriptionHandler.UpdateSubscriptionToPhaseEmotionEvent(Trigger, false);
+        }
+    }
+
+    public class Perk3 : PerkPOC, DebuffApplierPOC
+    {
+        public static Guid id;
+        public bool isActive;
+        HashSet<int> values;
+
+        public Perk3()
+        {
+            values = new HashSet<int>();
+        }
+
+        public bool Equals(PerkPOC? other)
+        {
+            if(other != null)
             {
-                active = true;
-                switch(trigger2.modes.First())
-                {
-                    case Modes.happy : intensity *= 2;
-                        return;
-                    case Modes.sad : intensity = (int) (intensity * 0.5);
-                        return;
-                }
+                return other.GetId() == id;
             }
+            return false;
+        }
+
+        public Guid GetId()
+        {
+            return id;
+        }
+
+        public void InitialiseSubscription(PerkEngagement.EngagementSubscriptionhandler subscriber)
+        {
+            subscriber.UpdateSubscriptionToItHappendEvent(Trigger, true);
+        }
+
+        public bool IsActive()
+        {
+            return isActive;
+        }
+
+        public void Trigger(ItHappened happened)
+        {
+            values.Add(happened.value);
+        }
+
+        public PerkPOC ResolveClash(PerkPOC otherPerkPoc)
+        {
+            throw new NotImplementedException();
         }
     }
 }

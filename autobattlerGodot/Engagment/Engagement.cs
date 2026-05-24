@@ -2,35 +2,93 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using static Movement;
 using static Phase;
+using static Strike;
+using static Troop;
 
 
-public class Engagement
+public class Engagement : TriggerController
 {
-	public delegate TroopAction RequestAction(Guid protagonist, ActionType actionType);
 	List<UnitEvent> tickEvent;
 	public MovementHandler movementHandler;
 	public ActionHandler actionHandler;
+	public SubscriptionHadler subscriptionHadler;
 	public Troop leftTroop;
 	public PhaseType currentPhase;
 	public Troop rightTroop;
-
 	public bool facing;
 
-	public enum ActorType
+    public event Func<Strike, TroopPerk?>? OnStrike;
+
+
+    // public event Action<Strike> OnStrike  = delegate{};
+    public event Action<MovementOrders> OnOrders  = delegate{};
+    public event Action<MovementStep> OnMovement  = delegate{};
+
+    public class SubscriptionHadler
 	{
-		protagonist,
-		antagonist
+		private TriggerController context;
+		public SubscriptionHadler(TriggerController context)
+		{
+			this.context = context;
+		}
+
+		public void UpdateMovementOrderSubscription(Action<MovementOrders> onMovementOrder, bool subscribe)
+		{
+			if(subscribe)
+			{
+				context.OnOrders += onMovementOrder;
+			}
+			else
+			{
+				context.OnOrders -= onMovementOrder;
+			}
+		}
+
+		public void UpdateMovementStepSubscription(Action<MovementStep> onMovement, bool subscribe)
+		{
+			if(subscribe)
+			{
+				context.OnMovement += onMovement;
+			}
+			else
+			{
+				context.OnMovement -= onMovement;
+			}
+		}
+
+		public void UpdateStrikeSubscription(Func<Strike, TroopPerk?> onStrike, bool subscribe)
+		{
+			if(subscribe)
+			{
+				context.OnStrike += onStrike;
+			}
+			else
+			{
+				context.OnStrike -= onStrike;
+			}
+		}
 	}
 
-	public Engagement(Troop leftTroop, Troop rightTroop, bool facing)
+	public Engagement(Troop leftTroop, Troop rightTroop, bool facing, IRandom rng)
 	{
 		this.leftTroop = leftTroop;
 		this.rightTroop = rightTroop;
 		this.facing = facing;
-		movementHandler = new MovementHandler();
-		actionHandler = new ActionHandler();
+		movementHandler = new MovementHandler(rng);
+		actionHandler = new ActionHandler(rng);
+		tickEvent = new List<UnitEvent>();
+		subscriptionHadler = new SubscriptionHadler(this);
+		foreach((Guid id, TroopPerk perk) in leftTroop.perkPool)
+		{
+			perk.InitialiseSubscription(subscriptionHadler);
+		}
+		foreach((Guid id,TroopPerk perk) in rightTroop.perkPool)
+		{
+			perk.InitialiseSubscription(subscriptionHadler);
+		}
 	}
 
 	public List<UnitEvent> ResolveRound()
@@ -44,75 +102,99 @@ public class Engagement
 
 	public void HandleMovementRound()
 	{
-		Tuple<Order, Order> movementOrder = movementHandler.InitialiseOrder(leftTroop.GetOrder(rightTroop.context, currentPhase), rightTroop.GetOrder(leftTroop.context, currentPhase), currentPhase);
-
-		if(movementOrder.Item1.protagonist)
+		MovementOrders movementOrder = movementHandler.InitialiseOrder(leftTroop.GetOrder(rightTroop.GetContext(), currentPhase), rightTroop.GetOrder(leftTroop.GetContext(), currentPhase), currentPhase);
+		if(movementOrder.protagonistOrder.protagonist || movementOrder.protagonistOrder.protagonist)
 		{
-			ResolveMovement(leftTroop, movementOrder.Item1, rightTroop, movementOrder.Item2);
-		}
-		if(movementOrder.Item2.protagonist)
-		{
-			ResolveMovement(leftTroop, movementOrder.Item1, rightTroop, movementOrder.Item2);
+			ResolveMovement(leftTroop, rightTroop, movementOrder);
 		}
 	}
 
-	public void ResolveMovement(Troop protagonistTroop, Order protagonistOrder, Troop antagonistTroop, Order antagonistOrder)
+	public void ResolveMovement(Troop protagonistTroop, Troop antagonistTroop, MovementOrders movementOrders)
 	{
 		bool protagonistMovementDone = false;
 		bool antagonistMovementDone = false;
 		while(!(protagonistMovementDone && antagonistMovementDone))
 		{
-			HandlePerks(new MovementStartTrigger(    
-				new HashSet<PhaseType>() {currentPhase},
-				new HashSet<MovementType>() {protagonistOrder.movement},
-				new HashSet<MovementType>() {antagonistOrder.movement}
-			), protagonistTroop, antagonistTroop);
-			antagonistTroop.TriggerPerks(
-				new MovementStartTrigger(    
-				new HashSet<PhaseType>() {currentPhase},
-				new HashSet<MovementType>() {antagonistOrder.movement},
-				new HashSet<MovementType>() {protagonistOrder.movement}
-			));
+			// HandlePerks(OnOrders, movementOrders, protagonistTroop, antagonistTroop);
 
-			MovementStep result = movementHandler.GetMovementResult(protagonistTroop.context, protagonistOrder, antagonistTroop.context, antagonistOrder, currentPhase);
+			MovementStep result = movementHandler.GetMovementResult(protagonistTroop.GetContext(), movementOrders.protagonistOrder, antagonistTroop.GetContext(), movementOrders.antagonistOrder, currentPhase);
 			currentPhase = result.resultPhase;
-			protagonistMovementDone = result.protagonistResult == MovementType.Stay || protagonistOrder.desiredPhase == currentPhase || protagonistMovementDone;
-			antagonistMovementDone = result.antagonistResult == MovementType.Stay || (antagonistOrder.desiredPhase == currentPhase && protagonistMovementDone) || antagonistMovementDone;
+			protagonistMovementDone = result.protagonistResult == MovementType.Stay || movementOrders.protagonistOrder.desiredPhase == currentPhase || protagonistMovementDone;
+			antagonistMovementDone = result.antagonistResult == MovementType.Stay || (movementOrders.antagonistOrder.desiredPhase == currentPhase && protagonistMovementDone) || antagonistMovementDone;
 		}
 	}
 
-	public void HandlePerks(TriggerType trigger, Troop protagonist, Troop antagonist)
+	public void ResolveStrike(Troop protagonist, Troop antagonist)
 	{
-		// Trigger
-		protagonist.TriggerPerks(trigger);
-		// Request Action
-		HashSet<ActionType> requestedActions = new HashSet<ActionType>();
-		foreach(Perk perk in protagonist.context.activePerkList)
+		TroopContext protagonistContext = protagonist.GetContext();
+		TroopContext antagonistContext = antagonist.GetContext();
+		Strike strike = actionHandler.DoStrike(protagonistContext, antagonistContext, currentPhase);
+		// TriggerPerks
+		strike.outcome = actionHandler.GetOutcome(strike, protagonistContext, antagonistContext);
+		HandlePerks(OnStrike, strike, protagonist, antagonist);
+		antagonist.TakeDamage(strike);
+		// Reform frontline
+	}
+
+	public void HandlePerks<T>(Func<T, TroopPerk?>? eventHandler, T trigger, Troop protagonist, Troop antagonist)
+	{
+		List<TroopPerk> triggerPerks = new List<TroopPerk>();
+		if(eventHandler != null)
+		{
+			foreach(Func<T, TroopPerk?> eventTrigger in eventHandler.GetInvocationList())
+			{
+				TroopPerk? perk = eventTrigger(trigger);
+				if(perk != null)
+				{
+					triggerPerks.Add(perk);
+				}
+			}
+		}
+
+		List<ActionRequest> requestedActions = new List<ActionRequest>();
+		foreach(TroopPerk perk in triggerPerks ?? new List<TroopPerk>())
 		{
 			if(perk is ActionRequester actionRequster)
 			{
-				requestedActions.Add(actionRequster.RequestAction());
+				foreach(ActionRequest action in actionRequster.RequestAction())
+				requestedActions.Add(action);
 			}
-		}
-		// Action Result
-		if(requestedActions.Contains(ActionType.Strike))
-		{
-			Strike strike = actionHandler.DoStrike(ActionType.Strike, protagonist, antagonist);
-			foreach(Perk perk in protagonist.context.activePerkList)
+			if( perk is DebuffApplier applier)
 			{
-				if(perk is RequiresAction<Strike> requiresAction)
+				if(perk.GetTroop() == protagonist.id)
 				{
-					requiresAction.ReceiveResults(strike);
+					TroopPerk debuff = (TroopPerk) applier.GetDebuff(antagonist.id);
+					antagonist.perkPool.Add(debuff.GetId(), debuff);
+				}
+				else if(perk.GetId() == antagonist.id)
+				{
+					TroopPerk debuff = (TroopPerk) applier.GetDebuff(protagonist.id);
+					protagonist.perkPool.Add(debuff.GetId(), debuff);
+				}
+				else
+				{
+					throw new NotImplementedException("Must Debuff a unit that is in the engagement: " + perk.GetTroop());
 				}
 			}
-			// Repeat for Push
-			// Repeat for Refresh
 		}
-		// Resolve Clashes
-		IEnumerable<IGrouping<Guid,Perk>> duplicates = protagonist.context.activePerkList.GroupBy(x => x.GetId()).Where( group => group.Count() > 1);
-		foreach(IGrouping<Guid, Perk> group in duplicates)
+
+		
+		// Action Result
+		foreach(ActionRequest request in requestedActions.Where(t => t.type == ActionType.Strike))
 		{
-			Perk.ResolveClash(group);
+			if(protagonist.id == request.protagonist)
+			{
+				ResolveStrike(protagonist, antagonist);
+			}
+			else
+			{
+				ResolveStrike(antagonist, protagonist);
+			}
 		}
+
+		// Repeat for Push
+		// Repeat for Refresh
+		// Resolve Clashes
+
 	}
 }

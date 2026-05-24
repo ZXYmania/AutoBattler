@@ -177,3 +177,9 @@ c:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\obj\Debu
 c:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\obj\Debug\net9.0\AutobattlerTest.pdb
 c:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\obj\Debug\net9.0\AutobattlerTest.genruntimeconfig.cache
 c:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\obj\Debug\net9.0\ref\AutobattlerTest.dll
+c:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\obj\Debug\net9.0\AutobattlerTest.sourcelink.json
+C:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\bin\Debug\net9.0\Castle.Core.dll
+C:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\bin\Debug\net9.0\Moq.dll
+C:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\bin\Debug\net9.0\System.Diagnostics.EventLog.dll
+C:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Diagnostics.EventLog.Messages.dll
+C:\Users\Dean\Documents\Autobattler\AutobattlerUnitTest\AutobattlerTest\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Diagnostics.EventLog.dll

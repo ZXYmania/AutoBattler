@@ -30,6 +30,11 @@ public struct Stats : IEquatable<Stats>
 		);
 	}
 
+	public override string ToString()
+	{
+		return "Stats: {" +" Strike: " + strike + " Power: "+ power +" Block: "+block + " Formation: " +formation +" Endurance: "+endurance+"}";
+	}
+
     public static Stats operator +(Stats baseStat, Stats addOn)
 	{
 		baseStat.block += addOn.block;
@@ -37,6 +42,16 @@ public struct Stats : IEquatable<Stats>
 		baseStat.formation += addOn.formation;
 		baseStat.power += addOn.power;
 		baseStat.strike += addOn.strike;
+		return baseStat;
+	}
+
+	public static Stats operator -(Stats baseStat, Stats addOn)
+	{
+		baseStat.block -= addOn.block;
+		baseStat.endurance -= addOn.endurance;
+		baseStat.formation -= addOn.formation;
+		baseStat.power -= addOn.power;
+		baseStat.strike -= addOn.strike;
 		return baseStat;
 	}
 }

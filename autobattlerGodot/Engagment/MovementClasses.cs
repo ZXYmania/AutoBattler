@@ -42,14 +42,14 @@ public class Movement
             {
                 case MovementType.Flee:
                     return 1;
-                case MovementType.Disengage:
-                    return 5;
                 case MovementType.Charge:
                     return 2;
                 case MovementType.March:
                     return 3;
                 case MovementType.Advance:
                     return 4;
+                case MovementType.Disengage:
+                    return 5;
                 case MovementType.Fallback:
                     return 6;
                 case MovementType.Stay:
@@ -60,19 +60,32 @@ public class Movement
         }
 }
 
+public struct MovementOrders : Trigger
+{
+    public Order protagonistOrder;
+    public Order antagonistOrder;
+    public PhaseType currentPhase;
+
+    public Trigger.TriggerType GetTriggerType()
+    {
+        return Trigger.TriggerType.OnMove;
+    }
+}
+
 public struct MovementCheck
 {
-    public MovementCheck(MovementType movement, PhaseType currentGap)
+    public MovementCheck(MovementType movement, PhaseType currentPhase)
     {
         threshold = 10;
-        outcomePhase = null;
+        // outcomePhase = null;
     }
     public int threshold;
-    public bool? succeeded;
-    public PhaseType? outcomePhase;
+    public Nullable<bool> succeeded;
+    // public Nullable<PhaseType> outcomePhase;
 
     public MovementCheck ModifyMovementCheck(MovementModifier modifier, PhaseType currentPhase)
 	{
+        
 		switch(modifier.type)
 		{
 			case MovementModifierType.Additive:
@@ -82,7 +95,7 @@ public struct MovementCheck
 				threshold *= modifier.value;
 				return this;
 			case MovementModifierType.Override:
-                if(succeeded != false)
+                if(succeeded.HasValue && succeeded.Value != false)
                 {
                     succeeded = modifier.overrideSuccess;
                 }
@@ -94,8 +107,9 @@ public struct MovementCheck
 	}
 }
 	
-public struct MovementStep
+public struct MovementStep : Trigger
 {    
+    Guid protagonist;
     public MovementType protagonistResult;
 
     public MovementType antagonistResult;
@@ -103,11 +117,17 @@ public struct MovementStep
     public PhaseType resultPhase;
 
     public MovementStep() {}
-    public MovementStep(MovementType protagonistReslt, MovementType antagonistResult, PhaseType resultPhase)
+    public MovementStep(Guid protagonist, MovementType protagonistReslt, MovementType antagonistResult, PhaseType resultPhase)
     {
+        this.protagonist = protagonist;
         this.protagonistResult = protagonistReslt;
         this.antagonistResult = antagonistResult;
         this.resultPhase = resultPhase;
+    }
+
+    public Trigger.TriggerType GetTriggerType()
+    {
+        return Trigger.TriggerType.OnMoveResult;
     }
 }
 
