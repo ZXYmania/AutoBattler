@@ -1,12 +1,15 @@
 using System;
+using static Engagement;
 
 public interface TriggerController
 {
-    // public event Action<Strike> OnStrike;
-	public event Func<Strike, TroopPerk?> OnStrike;
+    public event Func<Hit, TroopPerk?>? OnHit;
+	public event Func<Combat, TroopPerk?> OnCombat;
 
-	public event Action<MovementOrders> OnOrders;
-	public event Action<MovementStep> OnMovement;
+	public event Func<MovementOrders, TroopPerk?> OnOrders;
+	public event Func<MovementStep, TroopPerk?> OnMovement;
+
+    public event Action<EndOfRound> OnEndOfRound;
 
 	// OnPush,
     // OnPushResult,

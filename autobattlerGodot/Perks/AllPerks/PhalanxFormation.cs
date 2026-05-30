@@ -1,13 +1,10 @@
 using System;
 using static Engagement;
-using static TroopPerk;
-using static MovementHandler;
 using static Phase;
 using System.Collections.Generic;
 using static Movement;
 using static Troop;
 using static AffectsMovement;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 public class PhalanxFormation : TroopPerk, ActionRequester, AffectsMovement
@@ -77,10 +74,11 @@ public class PhalanxFormation : TroopPerk, ActionRequester, AffectsMovement
         if(subscriptionHandler != null)
         {
             subscriptionHandler.UpdateStrikeSubscription(Trigger, false);
+            subscriptionHandler.UpdateOnEndOfRoundSubscription(Trigger,false);
         }
     }
 
-    public void Trigger(MovementOrders order)
+    public TroopPerk? Trigger(MovementOrders order)
     {
         if(order.currentPhase == requiredPhase)
         {
@@ -88,24 +86,30 @@ public class PhalanxFormation : TroopPerk, ActionRequester, AffectsMovement
             {
                 actionRequested = true;
                 subscriptionHandler!.UpdateStrikeSubscription(Trigger, true);
-                // return this;
+                subscriptionHandler.UpdateOnEndOfRoundSubscription(Trigger, true);
+                return this;
             }
         }
-        // return null;
+        return null;
     }
 
-    public TroopPerk? Trigger(Strike strike)
+    public TroopPerk? Trigger(Combat strike)
     {
         subscriptionHandler!.UpdateStrikeSubscription(Trigger, false);
         if(actionRequested && strike.IsProtagonist(troopId))
         {
-            hitAmount = strike.hit.Count(t => t.Value.area != BodyPart.Shield && t.Value.area != BodyPart.Leg);
+            hitAmount = strike.strikeList.Count(t => t.Value.area != BodyPart.Shield && t.Value.area != BodyPart.Leg);
             movementActive = true;
             enemyId = strike.antagonistId;
             actionRequested = false;
-            return this;
+            return null;
         }
         return null;
+    }
+
+    public void Trigger(EndOfRound trigger)
+    {
+        ResetPerk();
     }
 
     public List<ActionRequest> RequestAction()

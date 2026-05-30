@@ -2,11 +2,10 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using static Movement;
-using static MovementHandler;
 using static Phase;
 
 
-public struct Order
+public class Order
 {
     public PhaseType currentPhase;
 
@@ -15,20 +14,21 @@ public struct Order
     public MovementType movement {get; private set;}
     public int effort {get; private set;}
     public bool protagonist {get; private set;}
-    public Captain captain;
+    public Captain captain {get; private set;}
 
     public Order(Guid troopId, Captain captain, PhaseType desiredPhase, PhaseType currentPhase)
     {
         this.currentPhase = currentPhase;
         this.troopId = troopId;
         this.desiredPhase = desiredPhase;
-        this.captain = captain;       
+        this.captain = captain;
+        movement = MovementType.Null;
     }
 
     public struct StandingOrder
     {
-        public MovementType movement {get; private set;}
-        public int effort {get; private set;}
+        public MovementType movement;
+        public int effort;
         public StandingOrder(MovementType movement, int effort)
         {
             this.movement = movement;
@@ -38,6 +38,11 @@ public struct Order
 
     public void SetProtagonist(PhaseType currentPhase)
     {
+        if(movement != MovementType.Null)
+        {
+            throw new NotImplementedException("Can not GetMovement for Order multiple times");
+        }
+
         StandingOrder standingOrder = captain.GetMovement(currentPhase, desiredPhase);
         movement = standingOrder.movement;
         effort = standingOrder.effort;
@@ -46,6 +51,10 @@ public struct Order
 
     public void SetAntagonist(PhaseType currentPhase, MovementType protagonistMovement)
     {
+        if(movement != MovementType.Null)
+        {
+            throw new NotImplementedException("Can not GetMovement for Order multiple times");
+        }
         StandingOrder standingOrder = captain.GetMovement(currentPhase, desiredPhase, protagonistMovement);
         movement = standingOrder.movement;
         effort = standingOrder.effort;

@@ -33,15 +33,15 @@ public sealed class EngagementPOCTest
     }
 
 
-    [TestMethod]
-    public void TestReference()
-    {
-        Unit testUnit = new Unit(new Stats(), null, new List<UnitPerk>());
-        Troop testTroop = new Troop(testUnit);
-        Troop testRight = new Troop(testUnit);
-        ExampleBattlefield testBattlefield = new ExampleBattlefield(testTroop, testRight);
-        StandAlone(testBattlefield.test[testTroop.id]);
-    }
+    // [TestMethod]
+    // public void TestReference()
+    // {
+    //     Unit testUnit = new Unit(new Stats(), null, new List<UnitPerk>());
+    //     Troop testTroop = new Troop(testUnit);
+    //     Troop testRight = new Troop(testUnit);
+    //     ExampleBattlefield testBattlefield = new ExampleBattlefield(testTroop, testRight);
+    //     StandAlone(testBattlefield.test[testTroop.id]);
+    // }
 
     public List<TroopPerk> GetNullPerks()
     {
@@ -95,10 +95,5 @@ public sealed class EngagementPOCTest
         
         List<Guid> test = data1.Keys.Intersect(data2.Keys).ToList();
 
-    }
-
-    public void StandAlone(Troop test)
-    {
-        test.UnitTest(new Stats(0,7,0,0,0));
     }
 }

@@ -10,7 +10,7 @@ public sealed class ShieldDestroyedTest
     public void TestInit()
     {
         var triggerController = new Mock<TriggerController>();
-        triggerController.SetupAdd(m=> m.OnStrike += It.IsAny<Func<Strike, TroopPerk?>>());
+        triggerController.SetupAdd(m=> m.OnCombat += It.IsAny<Func<Combat, TroopPerk?>>());
         var subscription = new Mock<SubscriptionHadler>(triggerController.Object);
 
         ShieldDestroyed perk = new ShieldDestroyed(Guid.NewGuid(), new ShieldDestroyed.HackOutput());

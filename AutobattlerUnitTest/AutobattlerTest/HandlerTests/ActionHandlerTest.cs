@@ -1,4 +1,5 @@
-using static Strike;
+using static Combat;
+using static Hit;
 using static Troop;
 
 [TestClass]
@@ -7,14 +8,13 @@ public sealed class ActionHandlerTest
     [TestMethod]
     public void TestCreateStrike()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         Squad squad = new Squad(1);
         TroopContext left = new TroopContext(){frontline=new List<Squad>(){squad}};
         TroopContext right = new TroopContext();
-        var strike = handler.DoStrike(left, right, Phase.PhaseType.Duel);
-        Assert.AreEqual(5, strike.hit[squad].effort);
-        Assert.AreEqual(BodyPart.Arm, strike.hit[squad].area);
+        var strike = new Hit(left, right, Phase.PhaseType.Duel, rng);
+        Assert.AreEqual(5, strike.strikeList[squad].effort);
+        Assert.AreEqual(BodyPart.Arm, strike.strikeList[squad].area);
     }
 
     public static IEnumerable<ValueTuple<TroopContext, TroopContext, int, BodyPart>> GetDefaultStrikeTable()
@@ -32,14 +32,13 @@ public sealed class ActionHandlerTest
 
     [TestMethod]
     [DynamicData(nameof(GetDefaultStrikeTable), DynamicDataSourceType.Method)]
-    public void TestStrikeHitCorrect(TroopContext left, TroopContext right, int effort, BodyPart expectedHit)
+    public void TestStrikeStrikeCorrect(TroopContext left, TroopContext right, int effort, BodyPart expectedStrike)
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){effort});
-        ActionHandler handler = new ActionHandler(rng);
-        var strike = handler.DoStrike(left, right, Phase.PhaseType.Duel);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){effort});
+        var strike = new Hit(left, right, Phase.PhaseType.Duel,rng);
         if(left.frontline != null && left.frontline.Count() == 1)
         {
-            Assert.AreEqual(expectedHit, strike.hit[left.frontline.First()].area);
+            Assert.AreEqual(expectedStrike, strike.strikeList[left.frontline.First()].area);
         }
         else
         {
@@ -52,12 +51,12 @@ public sealed class ActionHandlerTest
     {
         TroopContext left = new TroopContext(){frontline=new List<Squad>(){new Squad()}};
         TroopContext right = new TroopContext();
-        Assert.AreEqual(new StrikeChance{head=10, body=40, arm=70, leg=100}, Strike.GetStrikeValues(left.stats, right.stats));
-        TestStrikeHitCorrect(left, right, 100, BodyPart.Head);
-        TestStrikeHitCorrect(left, right, 90, BodyPart.Body);
-        TestStrikeHitCorrect(left, right, 60, BodyPart.Arm);
-        TestStrikeHitCorrect(left, right, 30, BodyPart.Leg);
-        TestStrikeHitCorrect(left, right, 0, BodyPart.Shield);
+        Assert.AreEqual(new StrikeChance{head=10, body=40, arm=70, leg=100}, Hit.GetStrikeValues(left.stats, right.stats));
+        TestStrikeStrikeCorrect(left, right, 100, BodyPart.Head);
+        TestStrikeStrikeCorrect(left, right, 90, BodyPart.Body);
+        TestStrikeStrikeCorrect(left, right, 60, BodyPart.Arm);
+        TestStrikeStrikeCorrect(left, right, 30, BodyPart.Leg);
+        TestStrikeStrikeCorrect(left, right, 0, BodyPart.Shield);
     }
 
     [TestMethod]
@@ -65,10 +64,10 @@ public sealed class ActionHandlerTest
     {
         TroopContext left = new TroopContext(){stats=new Stats{strike=800}, frontline=new List<Squad>(){new Squad()}};
         TroopContext right = new TroopContext();
-        Assert.AreEqual(new StrikeChance{head=20, body=80, arm=140, leg=200}, Strike.GetStrikeValues(left.stats, right.stats));
-        TestStrikeHitCorrect(left, right, 100, BodyPart.Head);
-        TestStrikeHitCorrect(left, right, 80, BodyPart.Body);
-        TestStrikeHitCorrect(left, right, 20, BodyPart.Arm);
+        Assert.AreEqual(new StrikeChance{head=20, body=80, arm=140, leg=200}, Hit.GetStrikeValues(left.stats, right.stats));
+        TestStrikeStrikeCorrect(left, right, 100, BodyPart.Head);
+        TestStrikeStrikeCorrect(left, right, 80, BodyPart.Body);
+        TestStrikeStrikeCorrect(left, right, 20, BodyPart.Arm);
     }
     
     [TestMethod]
@@ -76,10 +75,10 @@ public sealed class ActionHandlerTest
     {
         TroopContext left = new TroopContext(){stats=new Stats{strike=1000},frontline=new List<Squad>(){new Squad()}};
         TroopContext right = new TroopContext();
-        Assert.AreEqual(new StrikeChance{head=20, body=80, arm=140, leg=200}, Strike.GetStrikeValues(left.stats, right.stats));
-        TestStrikeHitCorrect(left, right, 100, BodyPart.Head);
-        TestStrikeHitCorrect(left, right, 80, BodyPart.Body);
-        TestStrikeHitCorrect(left, right, 20, BodyPart.Arm);
+        Assert.AreEqual(new StrikeChance{head=20, body=80, arm=140, leg=200}, Hit.GetStrikeValues(left.stats, right.stats));
+        TestStrikeStrikeCorrect(left, right, 100, BodyPart.Head);
+        TestStrikeStrikeCorrect(left, right, 80, BodyPart.Body);
+        TestStrikeStrikeCorrect(left, right, 20, BodyPart.Arm);
     }
 
     [TestMethod]
@@ -87,12 +86,12 @@ public sealed class ActionHandlerTest
     {
         TroopContext left = new TroopContext(){frontline=new List<Squad>(){new Squad()}};
         TroopContext right = new TroopContext(){stats=new Stats{block=700}};
-        Assert.AreEqual(new StrikeChance{head=1, body=4, arm=7, leg=10}, Strike.GetStrikeValues(left.stats, right.stats));
-        TestStrikeHitCorrect(left, right, 100, BodyPart.Head);
-        TestStrikeHitCorrect(left, right, 99, BodyPart.Body);
-        TestStrikeHitCorrect(left, right, 96, BodyPart.Arm);
-        TestStrikeHitCorrect(left, right, 93, BodyPart.Leg);
-        TestStrikeHitCorrect(left, right, 90, BodyPart.Shield);
+        Assert.AreEqual(new StrikeChance{head=1, body=4, arm=7, leg=10}, Hit.GetStrikeValues(left.stats, right.stats));
+        TestStrikeStrikeCorrect(left, right, 100, BodyPart.Head);
+        TestStrikeStrikeCorrect(left, right, 99, BodyPart.Body);
+        TestStrikeStrikeCorrect(left, right, 96, BodyPart.Arm);
+        TestStrikeStrikeCorrect(left, right, 93, BodyPart.Leg);
+        TestStrikeStrikeCorrect(left, right, 90, BodyPart.Shield);
     }
 
     [TestMethod]
@@ -100,167 +99,151 @@ public sealed class ActionHandlerTest
     {
         TroopContext left = new TroopContext(){frontline=new List<Squad>(){new Squad()}};
         TroopContext right = new TroopContext(){stats=new Stats{block=1000}};
-        Assert.AreEqual(new StrikeChance{head=1, body=4, arm=7, leg=10}, Strike.GetStrikeValues(left.stats, right.stats));
-        TestStrikeHitCorrect(left, right, 100, BodyPart.Head);
-        TestStrikeHitCorrect(left, right, 99, BodyPart.Body);
-        TestStrikeHitCorrect(left, right, 96, BodyPart.Arm);
-        TestStrikeHitCorrect(left, right, 93, BodyPart.Leg);
-        TestStrikeHitCorrect(left, right, 90, BodyPart.Shield);
+        Assert.AreEqual(new StrikeChance{head=1, body=4, arm=7, leg=10}, Hit.GetStrikeValues(left.stats, right.stats));
+        TestStrikeStrikeCorrect(left, right, 100, BodyPart.Head);
+        TestStrikeStrikeCorrect(left, right, 99, BodyPart.Body);
+        TestStrikeStrikeCorrect(left, right, 96, BodyPart.Arm);
+        TestStrikeStrikeCorrect(left, right, 93, BodyPart.Leg);
+        TestStrikeStrikeCorrect(left, right, 90, BodyPart.Shield);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeHead()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), new Hit(){area=BodyPart.Head}}
+        var hit = new Hit(){
+                strikeList= new Dictionary<Squad, Strike>(){
+                    {protagonist.frontline.First(), new Strike(){area=BodyPart.Head}}
                 }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(true, result[antagonist.frontline.First()].damaged);
+        };
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(true, result.outcomeList[antagonist.frontline.First()].damaged);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeBodyPowerGreater()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), new Hit(){area=BodyPart.Body}}
-                }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(true, result[antagonist.frontline.First()].damaged);
-        Assert.AreEqual(new Stats(), result[antagonist.frontline.First()].debuffs);
+        var hit = new Hit{
+            strikeList= new Dictionary<Squad, Strike>(){
+                {protagonist.frontline.First(), new Strike(){area=BodyPart.Body}}
+            }
+        };
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(true, result.outcomeList[antagonist.frontline.First()].damaged);
+        Assert.AreEqual(new Stats(), result.outcomeList[antagonist.frontline.First()].debuffs);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeBodyArmourGreater()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{
             frontline=new List<Squad>(1){new Squad()},
             armour=new Armour{body=150}
         };
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), 
-                        new Hit(){
-                            area=BodyPart.Body,
-                            deflectionRatio=1
-                        }
+        var hit = new Hit
+        {
+            strikeList= new Dictionary<Squad, Strike>()
+            {
+                {
+                    protagonist.frontline.First(), 
+                    new Strike(){
+                        area=BodyPart.Body,
+                        deflectionRatio=1
                     }
                 }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(false, result[antagonist.frontline.First()].damaged);
-        Assert.AreEqual(new Stats{endurance=-5}, result[antagonist.frontline.First()].debuffs);
+            }
+        };
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.First()].damaged);
+        Assert.AreEqual(new Stats{endurance=-5}, result.outcomeList[antagonist.frontline.First()].debuffs);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeArm()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{
             frontline=new List<Squad>(1){new Squad()},
         };
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), 
-                        new Hit(){
-                            area=BodyPart.Arm,
-                            deflectionRatio=1
-                        }
+        var hit = new Hit{
+            strikeList= new Dictionary<Squad, Strike>()
+            {
+                {
+                    protagonist.frontline.First(), 
+                    new Strike(){
+                        area=BodyPart.Arm,
+                        deflectionRatio=1
                     }
                 }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(false, result[antagonist.frontline.First()].damaged);
-        Assert.AreEqual(new Stats{block=-5}, result[antagonist.frontline.First()].debuffs);
+            }
+        };
+
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.First()].damaged);
+        Assert.AreEqual(new Stats{block=-5}, result.outcomeList[antagonist.frontline.First()].debuffs);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeLeg()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{
             frontline=new List<Squad>(1){new Squad()},
         };
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), 
-                        new Hit(){
-                            area=BodyPart.Leg,
-                            deflectionRatio=1
-                        }
+        var hit = new Hit()
+        {
+            strikeList= new Dictionary<Squad, Strike>()
+            {
+                {
+                    protagonist.frontline.First(), 
+                    new Strike(){
+                        area=BodyPart.Leg,
+                        deflectionRatio=1
                     }
                 }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(false, result[antagonist.frontline.First()].damaged);
-        Assert.AreEqual(new Stats{formation=-5}, result[antagonist.frontline.First()].debuffs);
+            }
+        };
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.First()].damaged);
+        Assert.AreEqual(new Stats{formation=-5}, result.outcomeList[antagonist.frontline.First()].debuffs);
     }
 
     [TestMethod]
     public void TestStrikeOutcomeShield()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>(1){new Squad()}};
         TroopContext antagonist = new TroopContext{
             frontline=new List<Squad>(1){new Squad()},
         };
-        var result = handler.GetOutcome(
-            new Strike{
-                hit= new Dictionary<Squad, Hit>(){
-                    {protagonist.frontline.First(), 
-                        new Hit(){
+        var hit = new Hit(){
+            strikeList= new Dictionary<Squad, Strike>(){
+                    {
+                        protagonist.frontline.First(), 
+                        new Strike(){
                             area=BodyPart.Shield,
                             deflectionRatio=1
                         }
                     }
-                }
-            },
-            protagonist,
-            antagonist
-        );
-        Assert.AreEqual(false, result[antagonist.frontline.First()].damaged);
-        Assert.AreEqual(new Stats(), result[antagonist.frontline.First()].debuffs);
+                }};
+        var result = new Combat(hit, protagonist, antagonist);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.First()].damaged);
+        Assert.AreEqual(new Stats(), result.outcomeList[antagonist.frontline.First()].debuffs);
     }
 
     [TestMethod]
-    public void TestStrikeOutcomeAllHitArea()
+    public void TestStrikeOutcomeAllStrikeArea()
     {
-        var rng = new UnitTestRNG(rngInt: new List<int>(){50});
-        ActionHandler handler = new ActionHandler(rng);
+        var rng = new MockUnitTestRNG(rngInt: new List<int>(){50});
 
         TroopContext protagonist = new TroopContext{frontline=new List<Squad>()
             {
@@ -281,31 +264,31 @@ public sealed class ActionHandlerTest
                 new Squad(5),
             }
         };
-        Strike input = new Strike{
-                hit= new Dictionary<Squad, Hit>(){
+        Hit input = new Hit{
+                strikeList= new Dictionary<Squad, Strike>(){
                     {protagonist.frontline.FirstOrDefault(t => t.column == 1), 
-                        new Hit(){area=BodyPart.Head}},
+                        new Strike(){area=BodyPart.Head}},
                     {protagonist.frontline.FirstOrDefault(t => t.column == 2), 
-                        new Hit(){
+                        new Strike(){
                             area=BodyPart.Body,
                             deflectionRatio=1
                         }
                     },
                     {protagonist.frontline.FirstOrDefault(t => t.column == 3), 
-                        new Hit(){
+                        new Strike(){
                             area=BodyPart.Arm,
                             deflectionRatio=1
                         }
                     },
                     {protagonist.frontline.FirstOrDefault(t => t.column == 4), 
-                        new Hit(){
+                        new Strike(){
                             area=BodyPart.Leg,
                             deflectionRatio=1
                         }
                     },
                     {
                         protagonist.frontline.FirstOrDefault(t => t.column == 5), 
-                        new Hit(){
+                        new Strike(){
                             area=BodyPart.Shield,
                             deflectionRatio=1
                         }
@@ -313,21 +296,21 @@ public sealed class ActionHandlerTest
                 }
         };
 
-        var result = handler.GetOutcome(input, protagonist, antagonist);
+        var result = new Combat(input, protagonist, antagonist);
         
-        Assert.AreEqual(true, result[antagonist.frontline.FirstOrDefault(t => t.column == 1)].damaged);
-        Assert.AreEqual(new Stats(), result[antagonist.frontline.FirstOrDefault(t => t.column == 1)].debuffs);
+        Assert.AreEqual(true, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 1)].damaged);
+        Assert.AreEqual(new Stats(), result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 1)].debuffs);
 
-        Assert.AreEqual(true, result[antagonist.frontline.FirstOrDefault(t => t.column == 2)].damaged);
-        Assert.AreEqual(new Stats(), result[antagonist.frontline.FirstOrDefault(t => t.column == 2)].debuffs);
+        Assert.AreEqual(true, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 2)].damaged);
+        Assert.AreEqual(new Stats(), result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 2)].debuffs);
 
-        Assert.AreEqual(false, result[antagonist.frontline.FirstOrDefault(t => t.column == 3)].damaged);
-        Assert.AreEqual(new Stats{block=-5}, result[antagonist.frontline.FirstOrDefault(t => t.column == 3)].debuffs);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 3)].damaged);
+        Assert.AreEqual(new Stats{block=-5}, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 3)].debuffs);
 
-        Assert.AreEqual(false, result[antagonist.frontline.FirstOrDefault(t => t.column == 4)].damaged);
-        Assert.AreEqual(new Stats{formation=-5}, result[antagonist.frontline.FirstOrDefault(t => t.column == 4)].debuffs);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 4)].damaged);
+        Assert.AreEqual(new Stats{formation=-5}, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 4)].debuffs);
         
-        Assert.AreEqual(false, result[antagonist.frontline.FirstOrDefault(t => t.column == 5)].damaged);
-        Assert.AreEqual(new Stats(), result[antagonist.frontline.FirstOrDefault(t => t.column == 5)].debuffs);
+        Assert.AreEqual(false, result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 5)].damaged);
+        Assert.AreEqual(new Stats(), result.outcomeList[antagonist.frontline.FirstOrDefault(t => t.column == 5)].debuffs);
     }
 }

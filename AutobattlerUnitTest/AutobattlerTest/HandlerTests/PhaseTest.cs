@@ -131,8 +131,7 @@ public sealed class PhaseTest
     [TestMethod]
     public void TestMovementPriority()
     {
-        UnitTestRNG rng = new UnitTestRNG(new List<float>(), new List<int>());
-        MovementHandler handler = new MovementHandler(rng);
+        MockUnitTestRNG rng = new MockUnitTestRNG(new List<float>(), new List<int>());
         foreach(MovementPriorityTestData testData in movmentPriorityTestDataList)
         {
             if(GetMovementPriority(testData.leftMovement) < GetMovementPriority(testData.rightMovement))

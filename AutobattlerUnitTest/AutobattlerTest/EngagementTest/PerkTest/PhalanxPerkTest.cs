@@ -3,8 +3,9 @@ using static AffectsMovement;
 using static Engagement;
 using static Movement;
 using static Phase;
-using static Strike;
+using static Combat;
 using static Troop;
+using static Hit;
 
 [TestClass]
 public sealed class PhalanxPerkTest
@@ -14,12 +15,12 @@ public sealed class PhalanxPerkTest
     public void TestInit()
     {
         var triggerController = new Mock<TriggerController>();
-        triggerController.SetupAdd(m=> m.OnOrders += It.IsAny<Action<MovementOrders>>());
+        triggerController.SetupAdd(m=> m.OnOrders += It.IsAny<Func<MovementOrders,TroopPerk?>>());
         var subscription = new Mock<SubscriptionHadler>(triggerController.Object);
 
         PhalanxFormation perk = new PhalanxFormation(Guid.NewGuid());
         perk.InitialiseSubscription(subscription.Object);
-        triggerController.VerifyAdd(m => m.OnOrders += It.IsAny<Action<MovementOrders>>(), Times.Exactly(1));
+        triggerController.VerifyAdd(m => m.OnOrders += It.IsAny<Func<MovementOrders,TroopPerk?>>(), Times.Exactly(1));
     }
 
     public static IEnumerable<ValueTuple<PhalanxFormation>> GetDefault()
@@ -49,15 +50,15 @@ public sealed class PhalanxPerkTest
         PhalanxFormation perk = new PhalanxFormation(Guid.NewGuid());
         // Assert no Errors
         var triggerController = new Mock<TriggerController>();
-        triggerController.SetupRemove(m=> m.OnOrders -= It.IsAny<Action<MovementOrders>>());
-        triggerController.SetupRemove(m=> m.OnStrike -= It.IsAny<Func<Strike, TroopPerk?>>());
+        triggerController.SetupRemove(m=> m.OnOrders -= It.IsAny<Func<MovementOrders,TroopPerk?>>());
+        triggerController.SetupRemove(m=> m.OnCombat -= It.IsAny<Func<Combat, TroopPerk?>>());
 
         var subscription = new Mock<SubscriptionHadler>(triggerController.Object);
         perk.InitialiseSubscription(subscription.Object);
         perk.Dispose();
 
-        triggerController.VerifyRemove(m => m.OnOrders -= It.IsAny<Action<MovementOrders>>(), Times.Exactly(1));
-        triggerController.VerifyRemove(m => m.OnStrike -= It.IsAny<Func<Strike, TroopPerk?>>(), Times.Exactly(1));
+        triggerController.VerifyRemove(m => m.OnOrders -= It.IsAny<Func<MovementOrders,TroopPerk?>>(), Times.Exactly(1));
+        triggerController.VerifyRemove(m => m.OnCombat -= It.IsAny<Func<Combat, TroopPerk?>>(), Times.Exactly(1));
     }
 
     [TestMethod]
@@ -67,13 +68,18 @@ public sealed class PhalanxPerkTest
         var triggerController = new UnitTestTriggerController();
         var subscription = new Mock<SubscriptionHadler>(triggerController);
         MovementOrders orders = new MovementOrders();
+        PhaseType currentPhase = PhaseType.Poke;
+
         TestCaptain protagonistCaptain = new TestCaptain();
         protagonistCaptain.SetupOnMovement(MovementType.Advance);
+        TestCaptain antagonistCaptain = new TestCaptain(new TroopContext(){id = perk.GetTroop()});
+        antagonistCaptain.SetupOnMovement(MovementType.Stay);
 
-        orders.protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()}; 
+        orders.protagonistOrder = protagonistCaptain.GetOrder(currentPhase); 
         orders.protagonistOrder.SetProtagonist(PhaseType.Poke);
-        orders.antagonistOrder = new Order{troopId=perk.GetTroop()};
-        orders.currentPhase = PhaseType.Poke;
+        orders.antagonistOrder = antagonistCaptain.GetOrder(currentPhase);
+        orders.currentPhase = currentPhase;
+
         perk.InitialiseSubscription(subscription.Object);
         triggerController.TriggerOnOrders(orders);
         Assert.AreEqual(true, perk.actionRequested);
@@ -87,13 +93,18 @@ public sealed class PhalanxPerkTest
         var triggerController = new UnitTestTriggerController();
         var subscription = new Mock<SubscriptionHadler>(triggerController);
         MovementOrders orders = new MovementOrders();
+        PhaseType currentPhase = PhaseType.Poke;
+
         TestCaptain protagonistCaptain = new TestCaptain();
         protagonistCaptain.SetupOnMovement(MovementType.Advance);
-
-        orders.protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()}; 
+        orders.protagonistOrder = protagonistCaptain.GetOrder(currentPhase); 
         orders.protagonistOrder.SetProtagonist(PhaseType.Poke);
-        orders.antagonistOrder = new Order{troopId=perk.GetTroop()};
-        orders.currentPhase = PhaseType.Poke;
+        
+        TestCaptain antagonistCaptain = new TestCaptain(new TroopContext(){id = perk.GetTroop()});
+        antagonistCaptain.SetupOnMovement(MovementType.Stay);
+        orders.antagonistOrder = antagonistCaptain.GetOrder(currentPhase);
+        orders.currentPhase = currentPhase;
+
         perk.InitialiseSubscription(subscription.Object);
         triggerController.TriggerOnOrders(orders);
         Assert.AreEqual(true, perk.actionRequested);
@@ -114,27 +125,32 @@ public sealed class PhalanxPerkTest
     }
 
     [TestMethod]
-    public void TestNoHitMovementTrigger()
+    public void TestNoStrikeMovementTrigger()
     {
         PhalanxFormation perk = new PhalanxFormation(Guid.NewGuid());
         var triggerController = new UnitTestTriggerController();
         var subscription = new Mock<SubscriptionHadler>(triggerController);
         MovementOrders orders = new MovementOrders();
+        var currentPhase = PhaseType.Poke;
+
         TestCaptain protagonistCaptain = new TestCaptain();
         protagonistCaptain.SetupOnMovement(MovementType.Advance);
-
-        orders.protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()}; 
+        orders.protagonistOrder = protagonistCaptain.GetOrder(currentPhase); 
         orders.protagonistOrder.SetProtagonist(PhaseType.Poke);
-        orders.antagonistOrder = new Order{troopId=perk.GetTroop()};
-        orders.currentPhase = PhaseType.Poke;
+        
+        TestCaptain antagonistCaptain = new TestCaptain(new TroopContext(){id = perk.GetTroop()});
+        antagonistCaptain.SetupOnMovement(MovementType.Stay);
+        orders.antagonistOrder = antagonistCaptain.GetOrder(currentPhase);
+
+        orders.currentPhase = currentPhase;
         perk.InitialiseSubscription(subscription.Object);
         triggerController.TriggerOnOrders(orders);
         Assert.AreEqual(true, perk.actionRequested);
-        triggerController.TriggerOnStrike(new Strike
+        triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
-            hit = new Dictionary<Squad, Hit>(),
-            outcome = new Dictionary<Squad, StrikeOutcome>()
+            strikeList = new Dictionary<Squad, Strike>(),
+            outcomeList = new Dictionary<Squad, StrikeOutcome>()
         });
         Assert.AreEqual(true, perk.movementActive);
         Assert.AreEqual(false, perk.actionRequested);
@@ -145,30 +161,35 @@ public sealed class PhalanxPerkTest
     }
 
     [TestMethod]
-    public void TestHitTriggerOnMovement()
+    public void TestStrikeTriggerOnMovement()
     {
         PhalanxFormation perk = new PhalanxFormation(Guid.NewGuid());
         var triggerController = new UnitTestTriggerController();
         var subscription = new Mock<SubscriptionHadler>(triggerController);
         MovementOrders orders = new MovementOrders();
+        var currentPhase = PhaseType.Poke;
+
         TestCaptain protagonistCaptain = new TestCaptain();
         protagonistCaptain.SetupOnMovement(MovementType.Advance);
-
-        orders.protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()}; 
+        orders.protagonistOrder = protagonistCaptain.GetOrder(currentPhase); 
         orders.protagonistOrder.SetProtagonist(PhaseType.Poke);
-        orders.antagonistOrder = new Order{troopId=perk.GetTroop()};
-        orders.currentPhase = PhaseType.Poke;
+        
+        TestCaptain antagonistCaptain = new TestCaptain(new TroopContext(){id = perk.GetTroop()});
+        antagonistCaptain.SetupOnMovement(MovementType.Stay);
+        orders.antagonistOrder = antagonistCaptain.GetOrder(currentPhase);
+        orders.currentPhase = currentPhase;
+
         perk.InitialiseSubscription(subscription.Object);
         triggerController.TriggerOnOrders(orders);
         Assert.AreEqual(true, perk.actionRequested);
-        triggerController.TriggerOnStrike(new Strike
+        triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
-            hit = new Dictionary<Squad, Hit>(){
-                {new Squad(1), new Hit{area=BodyPart.Head}},
-                {new Squad(2), new Hit{area=BodyPart.Head}},
-                {new Squad(3), new Hit{area=BodyPart.Head}},
-                {new Squad(4), new Hit{area=BodyPart.Head}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {new Squad(1), new Strike{area=BodyPart.Head}},
+                {new Squad(2), new Strike{area=BodyPart.Head}},
+                {new Squad(3), new Strike{area=BodyPart.Head}},
+                {new Squad(4), new Strike{area=BodyPart.Head}}
 
             }
         });

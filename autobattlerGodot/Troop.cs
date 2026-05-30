@@ -6,7 +6,8 @@ using System.Linq;
 using static Battlefield;
 using static TroopPerk;
 using static Phase;
-using static Strike;
+using static Combat;
+using static Hit;
 
 public partial class RenderTroop : Node
 {
@@ -65,7 +66,8 @@ public class Troop
 			this.id = troop.id;
 			this.baseStats = troop.stats;
 			this.stamina = troop.stamina;
-			this.frontline = troop.frontline;
+			this.frontline = troop.frontline.ToList();
+			this.armour = troop.armour;
 			this.routed = troop.routed;
 			this.activePerks = troop.perkPool.Where(p => p.Value.IsActive()).ToDictionary()?? new Dictionary<Guid, TroopPerk>();
 			UpdateBuffs();
@@ -79,9 +81,12 @@ public class Troop
 		public void UpdateBuffs()
 		{
 			computedStats = baseStats;
-			foreach(Buff buff in activePerks.Values.ToList()?? new List<TroopPerk>())
+			foreach(TroopPerk perk in activePerks.Values.ToList()?? new List<TroopPerk>())
 			{
-				computedStats += buff.GetStats();
+				if(perk is Buff buff)
+				{
+					computedStats += buff.GetStats();
+				}
 			}
 		}
 
@@ -137,7 +142,7 @@ public class Troop
 	
 	public Guid id;
 	public Stats stats;
-	public int stamina;
+	public int stamina {get; private set;}
 	public List<Squad> frontline;
 	public List<Squad> backline;
 	public bool routed;
@@ -182,7 +187,7 @@ public class Troop
 		}
 	}
 
-	public float GetRange()
+	public decimal GetRange()
 	{
 		return 1;
 	}
@@ -205,9 +210,43 @@ public class Troop
 		return captain.CanStrike();
 	}
 
-	public void TakeDamage(Strike strike)
+	public void CheckStamina()
 	{
-		foreach((Squad squad, StrikeOutcome outcome) in strike.outcome ?? throw new NotImplementedException("Invalid strike resolved"))
+		if(stats.endurance + stamina < 50)
+		{
+			routed = true;
+		}
+	}
+
+	public void DoMovement(Order actionedOrder)
+	{
+		if(actionedOrder.troopId != id)
+		{
+			throw new InvalidTroopId(actionedOrder.troopId, id);
+		}
+		stamina -= actionedOrder.effort;
+	}
+
+	public void DoStrike(Hit hit)
+	{
+		if(hit.protagonistId != id)
+		{
+			throw new InvalidTroopId(hit.antagonistId, id);
+		}
+		foreach(Strike strike in hit.strikeList.Values)
+		{
+			stamina -= strike.effort;
+			CheckStamina();
+		}
+	}
+
+	public void TakeDamage(Combat combat)
+	{
+		if(combat.antagonistId != id)
+		{
+			throw new InvalidTroopId(combat.antagonistId, id);
+		}
+		foreach((Squad squad, StrikeOutcome outcome) in combat.outcomeList ?? throw new NotImplementedException("Invalid strike resolved"))
 		{
 			if(outcome.damaged)
 			{
@@ -222,13 +261,14 @@ public class Troop
 						currentGap = Mathf.Abs(squad.column - backline.column);
 					}
 				}
-
-				if(!reinforcement.IsNull() && stats.formation > currentGap*200)
+				currentGap *= 400;
+				if(!reinforcement.IsNull() && stats.formation > currentGap)
 				{
 					reinforcement.column = squad.column;
 					frontline.Remove(squad);
 					backline.Remove(reinforcement);
 					frontline.Add(reinforcement);
+					stamina -= (-1-(currentGap-stats.formation)/400)*20;
 				}
 				else
 				{
@@ -237,11 +277,6 @@ public class Troop
 			}
 			stats += outcome.debuffs;
 		}
-	}
-
-	public void UnitTest(Stats updateStats)
-	{
-		stats += updateStats;
 	}
  
 	public struct Squad : IEquatable<Squad>

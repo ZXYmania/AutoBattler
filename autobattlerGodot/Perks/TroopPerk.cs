@@ -1,9 +1,5 @@
-using Godot;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using static Engagement;
-using static MovementHandler;
 
 public interface Trigger
 {
@@ -39,6 +35,14 @@ public interface Buff
 public interface DebuffApplier
 {
     public Buff GetDebuff(Guid targetId);
+    public class InvalidDebuffTarget : Exception
+    {
+        public InvalidDebuffTarget(Guid troopId, Guid? targtId) : base(
+            targtId != null? "Debuff id: "+ troopId + " doesn't match target id: " + targtId : "Debuff has no target." )
+        {
+            
+        }
+    }
 }
 
 public interface ActionRequester

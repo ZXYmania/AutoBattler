@@ -1,5 +1,4 @@
 using System;
-using static MovementHandler;
 using static Movement;
 
 public class Phase
@@ -17,10 +16,10 @@ public class Phase
     {
         switch(type)
         {
-            case PhaseType.OutOfCombat: 		return 4;
-			case PhaseType.Poke:		return 3;
-			case PhaseType.Duel:		return 2;
-			case PhaseType.Engage:		return 1;
+            case PhaseType.OutOfCombat: 	return 4;
+			case PhaseType.Poke:			return 3;
+			case PhaseType.Duel:			return 2;
+			case PhaseType.Engage:			return 1;
         }
 		throw new NotImplementedException("Unimplemented Phase type of: " + type);
     }
@@ -75,7 +74,7 @@ public class Phase
 			
 	}
 
-    public static int MovementToGap(MovementType movement)
+    private static int MovementToGap(MovementType movement)
 	{
 		switch(movement)
 		{
@@ -89,4 +88,20 @@ public class Phase
 		}
 		throw new NotImplementedException("Invalid movement type of:" + movement);
 	} 
+
+	public static MovementType AddMovements(MovementType left, MovementType right)
+	{
+		int gap = MovementToGap(left) + MovementToGap(right);
+		switch(gap)
+		{
+			case <-2: return MovementType.Flee;
+			case -2: return MovementType.Disengage;
+			case -1: return MovementType.Fallback;
+			case 0: return MovementType.Stay;
+			case 1: return MovementType.Advance;
+			case 2: return MovementType.March;
+			case > 2: return MovementType.Charge;
+		}
+		
+	}
 }

@@ -5,16 +5,28 @@ using static Troop;
 
 public class TestCaptain
 {
+    public TroopContext context;
+    public TroopContext enemy;
     public Mock<Captain> captain;
     public int round;
     public List<PhaseType> desiredPhaseType;
     public List<MovementType> movementOrders;
-    public TestCaptain()
+    public TestCaptain(TroopContext? context = null, TroopContext? enemy = null)
     {
         captain = new Mock<Captain>();
         round = 0;
         desiredPhaseType = new List<PhaseType>();
         movementOrders = new List<MovementType>();
+        if(!context.HasValue)
+        {
+            context = new TroopContext();
+        }
+        this.context = context.Value;
+        if(!enemy.HasValue)
+        {
+            enemy = new TroopContext();
+        }
+        this.enemy = enemy.Value;
 
     }
     
@@ -23,7 +35,13 @@ public class TestCaptain
         return captain.Object;
     }
 
-        public void SetupOrder(PhaseType phaseList)
+    public Order GetOrder(PhaseType currentPhase, int round = 0)
+    {
+        var type = round < desiredPhaseType.Count? desiredPhaseType[round]: PhaseType.OutOfCombat;
+        return new Order(context.id, captain.Object, type, currentPhase);
+    }
+
+    public void SetupOrder(PhaseType phaseList)
     {
         desiredPhaseType = new List<PhaseType>(){phaseList};
         captain.Setup(c => c.GetOrder(

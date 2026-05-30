@@ -5,27 +5,53 @@ using System.Linq;
 using System.Threading.Tasks;
 using static Movement;
 using static Phase;
-using static Strike;
+using static Combat;
 using static Troop;
+using static Hit;
 
 
 public class Engagement : TriggerController
 {
+	public event Func<Hit, TroopPerk?>? OnHit;
+    public event Func<Combat, TroopPerk?>? OnCombat;
+    public event Func<MovementOrders, TroopPerk?>? OnOrders;
+    public event Func<MovementStep, TroopPerk?>? OnMovement;
+	public event Action<EndOfRound> OnEndOfRound = delegate{};
+
 	List<UnitEvent> tickEvent;
-	public MovementHandler movementHandler;
-	public ActionHandler actionHandler;
 	public SubscriptionHadler subscriptionHadler;
 	public Troop leftTroop;
-	public PhaseType currentPhase;
 	public Troop rightTroop;
+	public Troop GetTroop(TroopContext context)
+	{
+		if(context.id == leftTroop.id)
+		{
+			return leftTroop;
+		}
+		if(context.id == rightTroop.id)
+		{
+			return rightTroop;
+		}
+		throw new InvalidTroopId(context.id, leftTroop.id, rightTroop.id);
+	}
+
+	public PhaseType currentPhase;
 	public bool facing;
+	public IRandom rng;
 
-    public event Func<Strike, TroopPerk?>? OnStrike;
-
-
-    // public event Action<Strike> OnStrike  = delegate{};
-    public event Action<MovementOrders> OnOrders  = delegate{};
-    public event Action<MovementStep> OnMovement  = delegate{};
+	public interface PartOfRound
+	{
+		enum RoundPart
+		{
+			Start,
+			End
+		}
+	}
+	
+	public struct EndOfRound : PartOfRound
+	{
+		
+	}
 
     public class SubscriptionHadler
 	{
@@ -35,7 +61,7 @@ public class Engagement : TriggerController
 			this.context = context;
 		}
 
-		public void UpdateMovementOrderSubscription(Action<MovementOrders> onMovementOrder, bool subscribe)
+		public void UpdateMovementOrderSubscription(Func<MovementOrders, TroopPerk?> onMovementOrder, bool subscribe)
 		{
 			if(subscribe)
 			{
@@ -47,7 +73,7 @@ public class Engagement : TriggerController
 			}
 		}
 
-		public void UpdateMovementStepSubscription(Action<MovementStep> onMovement, bool subscribe)
+		public void UpdateMovementStepSubscription(Func<MovementStep, TroopPerk?> onMovement, bool subscribe)
 		{
 			if(subscribe)
 			{
@@ -59,15 +85,27 @@ public class Engagement : TriggerController
 			}
 		}
 
-		public void UpdateStrikeSubscription(Func<Strike, TroopPerk?> onStrike, bool subscribe)
+		public void UpdateStrikeSubscription(Func<Combat, TroopPerk?> onStrike, bool subscribe)
 		{
 			if(subscribe)
 			{
-				context.OnStrike += onStrike;
+				context.OnCombat += onStrike;
 			}
 			else
 			{
-				context.OnStrike -= onStrike;
+				context.OnCombat -= onStrike;
+			}
+		}
+
+		public void UpdateOnEndOfRoundSubscription(Action<EndOfRound> onEndOfRound, bool subscribe)
+		{
+			if(subscribe)
+			{
+				context.OnEndOfRound += onEndOfRound;
+			}
+			else
+			{
+				context.OnEndOfRound -= onEndOfRound;
 			}
 		}
 	}
@@ -77,8 +115,7 @@ public class Engagement : TriggerController
 		this.leftTroop = leftTroop;
 		this.rightTroop = rightTroop;
 		this.facing = facing;
-		movementHandler = new MovementHandler(rng);
-		actionHandler = new ActionHandler(rng);
+		this.rng = rng;
 		tickEvent = new List<UnitEvent>();
 		subscriptionHadler = new SubscriptionHadler(this);
 		foreach((Guid id, TroopPerk perk) in leftTroop.perkPool)
@@ -93,47 +130,88 @@ public class Engagement : TriggerController
 
 	public List<UnitEvent> ResolveRound()
 	{
-		RandomNumberGenerator rng = new RandomNumberGenerator();
 		List<UnitEvent> tickEvent = new List<UnitEvent>();
 		HandleMovementRound();
-
+		HandleStrikeRound();
+		CleanUp();
+		OnEndOfRound(new EndOfRound());
 		return tickEvent;
 	}
 
 	public void HandleMovementRound()
 	{
-		MovementOrders movementOrder = movementHandler.InitialiseOrder(leftTroop.GetOrder(rightTroop.GetContext(), currentPhase), rightTroop.GetOrder(leftTroop.GetContext(), currentPhase), currentPhase);
-		if(movementOrder.protagonistOrder.protagonist || movementOrder.protagonistOrder.protagonist)
+		MovementOrders movementOrder = new MovementOrders(leftTroop.GetOrder(rightTroop.GetContext(), currentPhase), rightTroop.GetOrder(leftTroop.GetContext(), currentPhase), currentPhase);
+		if(movementOrder.protagonistOrder.protagonist && !movementOrder.antagonistOrder.protagonist)
 		{
-			ResolveMovement(leftTroop, rightTroop, movementOrder);
+			if(movementOrder.protagonistOrder.troopId == leftTroop.id)
+			{
+				ResolveMovement(leftTroop, rightTroop, movementOrder);
+			}
+			else
+			{
+				ResolveMovement(rightTroop, leftTroop, movementOrder);
+			}
 		}
 	}
 
 	public void ResolveMovement(Troop protagonistTroop, Troop antagonistTroop, MovementOrders movementOrders)
 	{
+		MovementStep result = new MovementStep()
+		{
+			protagonist=protagonistTroop.id,
+			protagonistResult = MovementType.Stay,
+			protagonistEffort = movementOrders.protagonistOrder.effort,
+
+			antagonistResult=MovementType.Stay,
+			antagonistEffort=movementOrders.antagonistOrder.effort,
+			resultPhase = currentPhase
+		};
+
 		bool protagonistMovementDone = false;
 		bool antagonistMovementDone = false;
+
 		while(!(protagonistMovementDone && antagonistMovementDone))
 		{
-			// HandlePerks(OnOrders, movementOrders, protagonistTroop, antagonistTroop);
-
-			MovementStep result = movementHandler.GetMovementResult(protagonistTroop.GetContext(), movementOrders.protagonistOrder, antagonistTroop.GetContext(), movementOrders.antagonistOrder, currentPhase);
-			currentPhase = result.resultPhase;
-			protagonistMovementDone = result.protagonistResult == MovementType.Stay || movementOrders.protagonistOrder.desiredPhase == currentPhase || protagonistMovementDone;
-			antagonistMovementDone = result.antagonistResult == MovementType.Stay || (movementOrders.antagonistOrder.desiredPhase == currentPhase && protagonistMovementDone) || antagonistMovementDone;
+			HandlePerks(OnOrders, movementOrders, protagonistTroop, antagonistTroop);
+			MovementStep step = new MovementStep(protagonistTroop.GetContext(), movementOrders.protagonistOrder, antagonistTroop.GetContext(), movementOrders.antagonistOrder, movementOrders.currentPhase, rng);
+			movementOrders.currentPhase = step.resultPhase;
+			AddMovements(result.protagonistResult, step.protagonistResult);
+			AddMovements(result.antagonistResult, result.antagonistResult);
+			protagonistMovementDone = step.protagonistResult == MovementType.Stay || movementOrders.protagonistOrder.desiredPhase == movementOrders.currentPhase || protagonistMovementDone;
+			antagonistMovementDone = step.antagonistResult == MovementType.Stay || (movementOrders.antagonistOrder.desiredPhase == movementOrders.currentPhase && protagonistMovementDone) || antagonistMovementDone;
 		}
+		protagonistTroop.DoMovement(movementOrders.protagonistOrder);
+		antagonistTroop.DoMovement(movementOrders.antagonistOrder);
+
+		currentPhase = movementOrders.currentPhase;
+		result.resultPhase = currentPhase;
+		HandlePerks(OnMovement, result, protagonistTroop, antagonistTroop);
 	}
 
-	public void ResolveStrike(Troop protagonist, Troop antagonist)
+	public void HandleStrikeRound()
 	{
-		TroopContext protagonistContext = protagonist.GetContext();
-		TroopContext antagonistContext = antagonist.GetContext();
-		Strike strike = actionHandler.DoStrike(protagonistContext, antagonistContext, currentPhase);
-		// TriggerPerks
-		strike.outcome = actionHandler.GetOutcome(strike, protagonistContext, antagonistContext);
-		HandlePerks(OnStrike, strike, protagonist, antagonist);
-		antagonist.TakeDamage(strike);
-		// Reform frontline
+		TroopContext leftContext = leftTroop.GetContext();
+		TroopContext rightContext = rightTroop.GetContext();
+		ResolveStrike(leftContext, rightContext);
+		ResolveStrike(rightContext, leftContext);
+	}
+
+	public void ResolveStrike(in TroopContext protagonistContext, in TroopContext antagonistContext)
+	{
+		if(!protagonistContext.activePerks.ContainsKey(Attacked.id))
+		{
+			Hit hit = new Hit(protagonistContext, antagonistContext, currentPhase,rng);
+			HandlePerks(OnHit, hit, GetTroop(protagonistContext), GetTroop(antagonistContext));
+			Combat combat = new Combat(hit, protagonistContext, antagonistContext);
+			HandlePerks(OnCombat, combat, GetTroop(protagonistContext), GetTroop(antagonistContext));
+			Attacked perk = new Attacked(protagonistContext.id);
+			perk.InitialiseSubscription(subscriptionHadler);
+			Troop protagonistTroop = GetTroop(protagonistContext);
+			protagonistTroop.perkPool[Attacked.id] = perk;
+			protagonistTroop.DoStrike(hit);
+			Troop antagonistTroop = GetTroop(antagonistContext);
+			antagonistTroop.TakeDamage(combat);
+		}
 	}
 
 	public void HandlePerks<T>(Func<T, TroopPerk?>? eventHandler, T trigger, Troop protagonist, Troop antagonist)
@@ -159,7 +237,7 @@ public class Engagement : TriggerController
 				foreach(ActionRequest action in actionRequster.RequestAction())
 				requestedActions.Add(action);
 			}
-			if( perk is DebuffApplier applier)
+			if(perk is DebuffApplier applier)
 			{
 				if(perk.GetTroop() == protagonist.id)
 				{
@@ -173,28 +251,48 @@ public class Engagement : TriggerController
 				}
 				else
 				{
-					throw new NotImplementedException("Must Debuff a unit that is in the engagement: " + perk.GetTroop());
+					throw new InvalidTroopId(perk.GetTroop(), leftTroop.id, rightTroop.id);
 				}
 			}
 		}
 
-		
-		// Action Result
-		foreach(ActionRequest request in requestedActions.Where(t => t.type == ActionType.Strike))
+		foreach(ActionRequest request in requestedActions)
 		{
-			if(protagonist.id == request.protagonist)
+			switch(request.type)
 			{
-				ResolveStrike(protagonist, antagonist);
-			}
-			else
-			{
-				ResolveStrike(antagonist, protagonist);
+				case ActionType.Strike:
+					TroopContext protagonistContext = protagonist.GetContext();
+					TroopContext antagonistContext = antagonist.GetContext();
+					if(protagonist.id == request.protagonist)
+					{
+						ResolveStrike(protagonistContext, antagonistContext);
+					}
+					else if(antagonist.id == request.protagonist)
+					{
+						ResolveStrike(antagonistContext, protagonistContext);
+					}
+					else
+					{
+						throw new InvalidTroopId(request.protagonist, protagonist.id, antagonist.id);
+					}
+					break;
+				// Repeat for Push
+				// Repeat for Refresh
+				// Resolve Clashes
 			}
 		}
+	}
 
-		// Repeat for Push
-		// Repeat for Refresh
-		// Resolve Clashes
+	public void CleanUp()
+	{
+		if((leftTroop.stats.endurance) + leftTroop.stamina < 0 )
+		{
+			leftTroop.routed = true;
+		}
 
+		if((rightTroop.stats.endurance) + rightTroop.stamina < 0 )
+		{
+			rightTroop.routed = true;
+		}
 	}
 }

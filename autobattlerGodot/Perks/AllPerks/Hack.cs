@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using static ShieldDestroyed;
-using static Strike;
 using static Troop;
+using static Hit;
 
 public class Hack : TroopPerk, DebuffApplier
 {
@@ -55,14 +54,14 @@ public class Hack : TroopPerk, DebuffApplier
         return troopId;
     }
 
-    public TroopPerk? Trigger(Strike strike)
+    public TroopPerk? Trigger(Combat strike)
     {
         if(troopId == strike.protagonistId)
         {
 
             bool updated = false;
             debuffs = new Tuple<Guid, List<Squad>>(strike.antagonistId, new List<Squad>());
-            foreach((Squad squad, Hit hit) in strike.hit)
+            foreach((Squad squad, Strike hit) in strike.strikeList)
             {
                 if(hit.area == BodyPart.Shield)
                 {
@@ -88,7 +87,7 @@ public class Hack : TroopPerk, DebuffApplier
     {
         if(debuffs == null || debuffs.Item1 != targetId)
         {
-            throw new NotImplementedException("Invalid troopId debuff not initialised: " + targetId);
+            throw new InvalidTroopId(targetId, debuffs.Item1);
         }
         ShieldDestroyed child = new ShieldDestroyed(targetId, new HackOutput{shieldsDestroyed=debuffs.Item2});
         debuffs = null;

@@ -2,9 +2,10 @@ using Moq;
 using static Engagement;
 using static Movement;
 using static Phase;
-using static Strike;
+using static Combat;
 using static TriggerTypePOCTest;
 using static Troop;
+using static Hit;
 
 [TestClass]
 public sealed class HackTest
@@ -14,12 +15,12 @@ public sealed class HackTest
     public void TestInit()
     {
         var triggerController = new Mock<TriggerController>();
-        triggerController.SetupAdd(m=> m.OnStrike += It.IsAny<Func<Strike, TroopPerk?>>());
+        triggerController.SetupAdd(m=> m.OnCombat += It.IsAny<Func<Combat, TroopPerk?>>());
         var subscription = new Mock<SubscriptionHadler>(triggerController.Object);
 
         Hack perk = new Hack(Guid.NewGuid());
         perk.InitialiseSubscription(subscription.Object);
-        triggerController.VerifyAdd(m => m.OnStrike += It.IsAny<Func<Strike, TroopPerk?>>(), Times.Exactly(1));
+        triggerController.VerifyAdd(m => m.OnCombat += It.IsAny<Func<Combat, TroopPerk?>>(), Times.Exactly(1));
     }
 
     [TestMethod]
@@ -28,13 +29,13 @@ public sealed class HackTest
         Hack perk = new Hack(Guid.NewGuid());
         // Assert no Errors
         var triggerController = new Mock<TriggerController>();
-        triggerController.SetupRemove(m=> m.OnStrike -= It.IsAny<Func<Strike, TroopPerk?>>());
+        triggerController.SetupRemove(m=> m.OnCombat -= It.IsAny<Func<Combat, TroopPerk?>>());
 
         var subscription = new Mock<SubscriptionHadler>(triggerController.Object);
         perk.InitialiseSubscription(subscription.Object);
         perk.Dispose();
 
-        triggerController.VerifyRemove(m => m.OnStrike -= It.IsAny<Func<Strike, TroopPerk?>>(), Times.Exactly(1));
+        triggerController.VerifyRemove(m => m.OnCombat -= It.IsAny<Func<Combat, TroopPerk?>>(), Times.Exactly(1));
     }
 
     [TestMethod]
@@ -53,15 +54,15 @@ public sealed class HackTest
 
         perk.InitialiseSubscription(subscription.Object);
         Guid antagonist = Guid.NewGuid();
-        var result = triggerController.TriggerOnStrike(new Strike
+        var result = triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Leg}},
-                {squads[1], new Hit{area=BodyPart.Shield}},
-                {squads[2], new Hit{area=BodyPart.Shield}},
-                {squads[3], new Hit{area=BodyPart.Leg}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Leg}},
+                {squads[1], new Strike{area=BodyPart.Shield}},
+                {squads[2], new Strike{area=BodyPart.Shield}},
+                {squads[3], new Strike{area=BodyPart.Leg}}
             }
         });
         Assert.IsTrue(perk.debuffs!.Item2.Contains(squads[1]));
@@ -87,15 +88,15 @@ public sealed class HackTest
 
         perk.InitialiseSubscription(subscription.Object);
         Guid antagonist = Guid.NewGuid();
-        var result = triggerController.TriggerOnStrike(new Strike
+        var result = triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Leg}},
-                {squads[1], new Hit{area=BodyPart.Leg}},
-                {squads[2], new Hit{area=BodyPart.Leg}},
-                {squads[3], new Hit{area=BodyPart.Leg}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Leg}},
+                {squads[1], new Strike{area=BodyPart.Leg}},
+                {squads[2], new Strike{area=BodyPart.Leg}},
+                {squads[3], new Strike{area=BodyPart.Leg}}
             }
         });
 
@@ -120,27 +121,27 @@ public sealed class HackTest
         perk.InitialiseSubscription(subscription.Object);
 
         Guid antagonist = Guid.NewGuid();
-        triggerController.TriggerOnStrike(new Strike
+        triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Leg}},
-                {squads[1], new Hit{area=BodyPart.Shield}},
-                {squads[2], new Hit{area=BodyPart.Shield}},
-                {squads[3], new Hit{area=BodyPart.Leg}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Leg}},
+                {squads[1], new Strike{area=BodyPart.Shield}},
+                {squads[2], new Strike{area=BodyPart.Shield}},
+                {squads[3], new Strike{area=BodyPart.Leg}}
             }
         });
         
-        var result = triggerController.TriggerOnStrike(new Strike
+        var result = triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Leg}},
-                {squads[1], new Hit{area=BodyPart.Leg}},
-                {squads[2], new Hit{area=BodyPart.Shield}},
-                {squads[3], new Hit{area=BodyPart.Shield}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Leg}},
+                {squads[1], new Strike{area=BodyPart.Leg}},
+                {squads[2], new Strike{area=BodyPart.Shield}},
+                {squads[3], new Strike{area=BodyPart.Shield}}
             }
         });
 
@@ -168,15 +169,15 @@ public sealed class HackTest
 
         perk.InitialiseSubscription(subscription.Object);
         Guid antagonist = Guid.NewGuid();
-        var result = triggerController.TriggerOnStrike(new Strike
+        var result = triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Leg}},
-                {squads[1], new Hit{area=BodyPart.Leg}},
-                {squads[2], new Hit{area=BodyPart.Shield}},
-                {squads[3], new Hit{area=BodyPart.Leg}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Leg}},
+                {squads[1], new Strike{area=BodyPart.Leg}},
+                {squads[2], new Strike{area=BodyPart.Shield}},
+                {squads[3], new Strike{area=BodyPart.Leg}}
             }
         });
 
@@ -203,15 +204,15 @@ public sealed class HackTest
 
         perk.InitialiseSubscription(subscription.Object);
         Guid antagonist = Guid.NewGuid();
-        var result = triggerController.TriggerOnStrike(new Strike
+        var result = triggerController.TriggerOnStrike(new Combat
         {
             protagonistId = perk.troopId,
             antagonistId = antagonist,
-            hit = new Dictionary<Squad, Hit>(){
-                {squads[0], new Hit{area=BodyPart.Shield}},
-                {squads[1], new Hit{area=BodyPart.Shield}},
-                {squads[2], new Hit{area=BodyPart.Shield}},
-                {squads[3], new Hit{area=BodyPart.Leg}}
+            strikeList = new Dictionary<Squad, Strike>(){
+                {squads[0], new Strike{area=BodyPart.Shield}},
+                {squads[1], new Strike{area=BodyPart.Shield}},
+                {squads[2], new Strike{area=BodyPart.Shield}},
+                {squads[3], new Strike{area=BodyPart.Leg}}
             }
         });
 

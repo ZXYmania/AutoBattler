@@ -71,7 +71,7 @@ public class ShieldDestroyed : TroopPerk, Buff
     {
         if(otherPerk.GetTroop() != troopId)
         {
-            throw new NotImplementedException("TroopIds must match "+ troopId +", "+otherPerk.GetTroop());
+            throw new InvalidTroopId(troopId, otherPerk.GetTroop());
         }
         if(otherPerk is ShieldDestroyed debuff)
         {

@@ -18,15 +18,14 @@ public sealed class MovementHandlerTest
         {
             TroopContext leftContext = new TroopContext(){id=Guid.NewGuid()};
             TroopContext rightContext = new TroopContext(){id=Guid.NewGuid()};
-            UnitTestRNG rng = new UnitTestRNG(new List<float>(), new List<int>());
+            MockUnitTestRNG rng = new MockUnitTestRNG(new List<float>(), new List<int>());
             TestCaptain protagonistCaptain = new TestCaptain();
             protagonistCaptain.SetupOrder(test.leftPhase);
             TestCaptain antagonistCaptain = new TestCaptain();
             antagonistCaptain.SetupOrder(test.rightPhase);
             Order left = protagonistCaptain.GetCaptain().GetOrder(leftContext, rightContext, test.currentPhase);
             Order right = antagonistCaptain.GetCaptain().GetOrder(rightContext, leftContext, test.currentPhase);
-            MovementHandler handler = new MovementHandler(rng);
-            MovementOrders output = handler.InitialiseOrder(left, right, test.currentPhase);
+            MovementOrders output = new MovementOrders(left, right, test.currentPhase);
             if(left.troopId == output.protagonistOrder.troopId)
             {
                 Assert.AreEqual(test, new ProtagonistMovementTestData(output.protagonistOrder.desiredPhase, output.antagonistOrder.desiredPhase, test.currentPhase, output.protagonistOrder.protagonist, output.antagonistOrder.protagonist));
@@ -70,13 +69,13 @@ public sealed class MovementHandlerTest
             TestCaptain antagonistCaptain = new TestCaptain();
             antagonistCaptain.SetupOnMovement(step.antagonistResult);
 
-            UnitTestRNG rng = new UnitTestRNG(new List<float>(), new List<int>());
-            MovementHandler handler = new MovementHandler(rng);
+            MockUnitTestRNG rng = new MockUnitTestRNG(new List<float>(), new List<int>());
+            var currentPhase = PhaseType.OutOfCombat;
             TroopContext nullContext = new TroopContext();
-            Order protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()};
-            Order antagonistOrder = new Order{captain=antagonistCaptain.GetCaptain()};
+            Order protagonistOrder = protagonistCaptain.GetOrder(currentPhase);
+            Order antagonistOrder = antagonistCaptain.GetOrder(currentPhase);
     
-            Assert.AreEqual(step.resultPhase, handler.GetMovementResult(nullContext, protagonistOrder, nullContext, antagonistOrder, step.resultPhase).resultPhase);
+            Assert.AreEqual(step.resultPhase, new MovementStep(nullContext, protagonistOrder, nullContext, antagonistOrder, step.resultPhase, rng).resultPhase);
         }
     }
 
@@ -85,8 +84,7 @@ public sealed class MovementHandlerTest
     public void GenerateTestData()
     {
         List<OrderTestData> save = new List<OrderTestData>();
-        UnitTestRNG rng = new UnitTestRNG(new List<float>(), new List<int>());
-        MovementHandler handler = new MovementHandler(rng);
+        MockUnitTestRNG rng = new MockUnitTestRNG(new List<float>(), new List<int>());
         TroopContext nullContext = new TroopContext();
         foreach(MovementType protagonistMovement in allMovementType)
         {
@@ -102,13 +100,13 @@ public sealed class MovementHandlerTest
                         antagonistCaptain.SetupOnMovement(antagonistMovement);
                         OrderTestData currentData = new OrderTestData()
                         {
-                            protagonistOrder = new Order{captain=protagonistCaptain.GetCaptain()},
-                            antagonistOrder = new Order{captain=antagonistCaptain.GetCaptain()}
+                            protagonistOrder = protagonistCaptain.GetCaptain().GetOrder(new TroopContext(), new TroopContext(), PhaseType.OutOfCombat),
+                            antagonistOrder = antagonistCaptain.GetCaptain().GetOrder(new TroopContext(), new TroopContext(), PhaseType.OutOfCombat)
                         };                        
                         currentData.protagonistOrder.SetProtagonist(currentPhase);
                         currentData.antagonistOrder.SetAntagonist(currentPhase, currentData.protagonistOrder.movement);
                         currentData.currentPhase = currentPhase;
-                        currentData.result = handler.GetMovementResult(nullContext, currentData.protagonistOrder, nullContext, currentData.antagonistOrder, currentPhase);
+                        currentData.result = new MovementStep(nullContext, currentData.protagonistOrder, nullContext, currentData.antagonistOrder, currentPhase, rng);
                         save.Add(currentData);
                     }
                 }
